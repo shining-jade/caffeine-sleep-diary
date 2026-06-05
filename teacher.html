@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -508,7 +508,7 @@
   <script>
     // ⭐ 아래 URL을 배포된 GAS 웹앱 URL로 변경하세요
     // GAS 편집기 → 배포 → 웹 앱으로 배포 → URL 복사
-    window.GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzxR8RKHpk_1iSG_PhGf7t6m4F7STJscUp_BnxNWmsmw9kua8U5GVmqbVrlyNULx0sP/exec';
+    window.GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyVWXKqvMwZuV9SxZ8I8E7GgK9e3iehRnFhU0i8vWnPbJm73Cp4VQ815X75XTFRz4nG/exec';
   </script>
   <!-- ══ gas-bridge.js: GitHub Pages 환경에서만 로드
        GAS 웹앱 내부(userCodeAppPanel)에서는 google.script.run이 이미 내장되어 있으므로
@@ -1348,6 +1348,7 @@
             <div class="modal-actions">
                 <button class="btn btn-green" onclick="requestAIAnalysis()" id="aiBtn">📊 건강분석</button>
                 <button class="btn btn-blue" onclick="exportPDF()">📄 PDF 저장</button>
+                <button class="btn" style="background:#eff6ff;color:#1d4ed8;border:none;" onclick="sendPDFToStudent()">📎 PDF 보내기</button>
                 <button class="btn" style="background:#f5f3ff;color:#6d28d9;border:none;" onclick="openManualAwardModal('single')">🏅 뱃지 수여</button>
                 <button class="btn" style="background:#ecfdf5;color:#065f46;border:none;" onclick="openMsgSendModal()">📨 메시지 보내기</button>
             </div>
@@ -4334,7 +4335,8 @@ function exportStudentToSheet(){
         .exportDataToNewSheet({sheetName, rows: summaryRows, dropdownCols});
 }
 
-function exportPDF(){
+function exportPDF(options){
+    options = options || {};
     const s=studentsData.find(st=>st.학번===currentStudentId);if(!s)return;
     const endDate=document.getElementById('modalEndDate').value||today;
     const dates=getModalDates();
@@ -4472,10 +4474,65 @@ function exportPDF(){
     }
 
     setTimeout(()=>{
+        if(options.mode === 'send'){
+            const html = buildPDFSendHTML();
+            pdfDiv.style.cssText='display:none;';
+            document.title=originalTitle;
+            if(typeof options.onReady === 'function') options.onReady(html, {
+                student: s,
+                dates,
+                fileName: `${currentStudentId}_${s.이름}_건강기록_${dates[0]}_${dates[dates.length-1]}.pdf`
+            });
+            return;
+        }
         pdfDiv.style.cssText='display:none;';
         window.print();
         setTimeout(()=>{document.title=originalTitle;},1000);
     },600);
+}
+
+function buildPDFSendHTML(){
+    const pdfContent = document.getElementById('pdfOnlyContent');
+    const styles = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
+    return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${styles}
+        body{margin:0;background:white;font-family:'Pretendard',Arial,sans-serif;}
+        #pdfOnlyContent{display:block!important;position:static!important;left:auto!important;top:auto!important;width:800px!important;background:white!important;}
+    </style></head><body>${pdfContent.outerHTML}</body></html>`;
+}
+
+function sendPDFToStudent(){
+    const s = studentsData.find(st=>st.학번===currentStudentId);
+    if(!s){alert('학생 정보를 찾을 수 없습니다.');return;}
+    showTeacherModal('📎','PDF 준비 중...',`${s.이름} 학생에게 보낼 PDF를 만들고 있습니다.`,'info');
+    exportPDF({
+        mode:'send',
+        onReady:(html, meta)=>{
+            google.script.run
+                .withSuccessHandler(res=>{
+                    const prev=document.getElementById('teacherAlertModal');
+                    if(prev)prev.remove();
+                    if(res&&res.success){
+                        showTeacherModal('✅','전송 완료',`${s.이름} 학생의 메시지함으로 PDF 링크를 보냈습니다.`,'success');
+                        loadSentMessages();
+                    }else{
+                        showTeacherModal('❌','전송 실패',(res&&res.error)||'알 수 없는 오류가 발생했습니다.','error');
+                    }
+                })
+                .withFailureHandler(err=>{
+                    const prev=document.getElementById('teacherAlertModal');
+                    if(prev)prev.remove();
+                    showTeacherModal('❌','오류','PDF 전송 중 문제가 발생했습니다: '+String(err),'error');
+                })
+                .saveTeacherPdfAndSendMessage({
+                    studentId: currentStudentId,
+                    studentName: s.이름,
+                    title: '건강 기록 PDF',
+                    content: `${meta.dates[0]} ~ ${meta.dates[meta.dates.length-1]} 건강 기록 PDF입니다.`,
+                    fileName: meta.fileName,
+                    html
+                });
+        }
+    });
 }
 
 
@@ -4530,6 +4587,17 @@ function formatMsgDate(ts) {
     if (isNaN(d)) return ts;
     const days = ['일','월','화','수','목','금','토'];
     return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
+}
+
+function formatTeacherMsgContent(content) {
+    const safe = String(content || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    return safe.replace(/(https?:\/\/[^\s<]+)/g, url => {
+        const label = url.includes('drive.google.com') ? 'PDF 열기' : '링크 열기';
+        return `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:#3b82f6;color:white;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;text-decoration:none;">📎 ${label}</a>`;
+    });
 }
 
 let allInquiries = [];
@@ -4823,7 +4891,7 @@ function loadSentMessages() {
                             </div>
                         </div>
                         <div style="font-size:12px;color:#9ca3af;margin-top:4px;">${formatMsgDate(m.timestamp)} ${readTime}</div>
-                        <div style="font-size:13px;color:#374151;margin-top:8px;white-space:pre-wrap;">${m.content}</div>
+                        <div style="font-size:13px;color:#374151;margin-top:8px;white-space:pre-wrap;">${formatTeacherMsgContent(m.content)}</div>
                         ${replySection}
                     </div>
                 </div>`;
