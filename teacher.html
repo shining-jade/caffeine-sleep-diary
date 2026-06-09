@@ -508,7 +508,7 @@
   <script>
     // ⭐ 아래 URL을 배포된 GAS 웹앱 URL로 변경하세요
     // GAS 편집기 → 배포 → 웹 앱으로 배포 → URL 복사
-    window.GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzxR8RKHpk_1iSG_PhGf7t6m4F7STJscUp_BnxNWmsmw9kua8U5GVmqbVrlyNULx0sP/exec';
+    window.GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyVWXKqvMwZuV9SxZ8I8E7GgK9e3iehRnFhU0i8vWnPbJm73Cp4VQ815X75XTFRz4nG/exec';
   </script>
   <!-- ══ gas-bridge.js: GitHub Pages 환경에서만 로드
        GAS 웹앱 내부(userCodeAppPanel)에서는 google.script.run이 이미 내장되어 있으므로
@@ -4492,12 +4492,27 @@ function exportPDF(options){
 }
 
 function buildPDFSendHTML(){
+    if(charts.pdfDual && charts.pdfDual.canvas){
+        try{charts.pdfDual.update('none');}catch(e){}
+    }
     const pdfContent = document.getElementById('pdfOnlyContent');
+    const clonedContent = pdfContent.cloneNode(true);
+    clonedContent.querySelectorAll('canvas').forEach(canvasClone => {
+        const sourceCanvas = canvasClone.id ? document.getElementById(canvasClone.id) : null;
+        if(!sourceCanvas) return;
+        try{
+            const img = document.createElement('img');
+            img.src = sourceCanvas.toDataURL('image/png');
+            img.alt = canvasClone.getAttribute('aria-label') || '';
+            img.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;';
+            canvasClone.replaceWith(img);
+        }catch(e){}
+    });
     const styles = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
     return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>${styles}
         body{margin:0;background:white;font-family:'Pretendard',Arial,sans-serif;}
         #pdfOnlyContent{display:block!important;position:static!important;left:auto!important;top:auto!important;width:800px!important;background:white!important;}
-    </style></head><body>${pdfContent.outerHTML}</body></html>`;
+    </style></head><body>${clonedContent.outerHTML}</body></html>`;
 }
 
 function sendPDFToStudent(){
