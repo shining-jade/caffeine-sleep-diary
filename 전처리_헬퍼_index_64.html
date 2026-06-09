@@ -1,0 +1,3562 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>카페인·수면 전처리 헬퍼</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee9;
+      --brand: #176b87;
+      --brand-2: #2f9e8f;
+      --warn: #b54708;
+      --bad: #b42318;
+      --good: #027a48;
+      --shadow: 0 14px 34px rgba(23, 32, 51, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      background: linear-gradient(135deg, #12384a, #176b87 54%, #2f9e8f);
+      color: white;
+      padding: 28px 32px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      color: rgba(255,255,255,0.84);
+      font-size: 15px;
+    }
+
+    main {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .side {
+      padding: 18px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .side h2, .content h2 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .field {
+      margin: 14px 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      color: #344054;
+      font-weight: 650;
+    }
+
+    input, select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 10px;
+      font-size: 14px;
+    }
+
+    input[type="file"] {
+      padding: 8px;
+      background: #f9fafb;
+    }
+
+    .drop-zone {
+      border: 1px dashed #9db7d9;
+      border-radius: 8px;
+      background: #f8fbff;
+      padding: 10px;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--brand);
+      background: #eef9fb;
+      box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.12);
+    }
+
+    .drop-zone p {
+      margin: 8px 2px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .content {
+      min-width: 0;
+      padding: 18px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 6px;
+      padding: 9px 13px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #eef4ff;
+      color: #1849a9;
+      border: 1px solid #b2ccff;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 24px;
+    }
+
+    .notice {
+      border: 1px solid #b7e4d5;
+      background: #ecfdf3;
+      color: #054f31;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 14px 0;
+      font-size: 14px;
+    }
+
+    .notice.warn {
+      border-color: #fedf89;
+      background: #fffaeb;
+      color: var(--warn);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      margin-top: 18px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      background: transparent;
+      color: var(--muted);
+      border-radius: 0;
+      border-bottom: 3px solid transparent;
+      min-height: 42px;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 560px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-top: 14px;
+      background: white;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 900px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #eaecf0;
+      padding: 9px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f2f6fa;
+      z-index: 1;
+      color: #344054;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 30px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      header { padding: 22px 18px; }
+      main { padding: 14px; }
+      .layout { grid-template-columns: 1fr; }
+      .side { position: static; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .dl-section {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .dl-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      flex-wrap: wrap;
+    }
+
+    .dl-row + .dl-row {
+      border-top: 1px solid var(--line);
+      background: #fafbfc;
+    }
+
+    .dl-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #344054;
+      min-width: 110px;
+      white-space: nowrap;
+    }
+
+    .dl-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      flex: 1;
+    }
+
+    .dl-controls select {
+      width: auto;
+      min-width: 120px;
+      flex: 0 0 auto;
+    }
+
+    .dl-controls input[type="date"] {
+      width: 150px;
+      min-width: 150px;
+      flex: 0 0 150px;
+      padding: 7px 10px;
+      min-height: 36px;
+    }
+
+    .dl-controls button {
+      font-size: 13px;
+      padding: 7px 12px;
+      min-height: 36px;
+    }
+
+    .advanced {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .advanced summary {
+      cursor: pointer;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .progress-bar-wrap {
+      display: none;
+      margin-top: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--brand);
+      width: 0%;
+      transition: width 0.1s;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>교사용 카페인·수면 분석자료 생성기 v64</h1>
+    <p>교사가 카페인·수면 원자료를 넣으면, 학생 활동에 사용할 반별·개인별 분석 데이터와 AI 분석용 CSV를 자동 생성합니다.</p>
+  </header>
+
+  <main>
+    <div class="layout">
+      <aside class="panel side">
+        <h2>파일과 옵션</h2>
+        <div class="field">
+          <label for="file">엑셀 파일</label>
+          <div id="dropZone" class="drop-zone">
+            <input id="file" type="file" accept=".xlsx,.xls" />
+            <p id="dropHint">엑셀 파일을 여기에 드래그하거나 파일 선택 버튼을 눌러 업로드하세요.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="run">전처리 실행</button>
+          <button id="reset" class="secondary" type="button">초기화</button>
+        </div>
+        <details class="advanced">
+          <summary>고급 설정 열기</summary>
+          <div class="field">
+            <label for="sleepBasis">sleep 날짜 기준</label>
+            <select id="sleepBasis">
+              <option value="bedtime">취침일 기준 · 잠든 날짜 (현재 앱 방식, 권장)</option>
+              <option value="wakeup">기상일 기준 · 일어난 날짜 (수면추적앱 내보내기용)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="afternoonHour">오후 카페인 기준</label>
+            <input id="afternoonHour" type="number" min="12" max="20" value="15" />
+          </div>
+          <div class="field">
+            <label for="eveningHour">저녁 카페인 기준</label>
+            <input id="eveningHour" type="number" min="15" max="23" value="18" />
+          </div>
+          <div class="field">
+            <label for="goodConditionScore">숙면 컨디션 기준 점수</label>
+            <input id="goodConditionScore" type="number" min="1" max="5" value="4" />
+          </div>
+          <div class="field">
+            <label for="caffeineLimit">info 없을 때 기본 카페인 한도(mg)</label>
+            <input id="caffeineLimit" type="number" min="0" step="10" value="150" />
+          </div>
+        </details>
+      </aside>
+
+      <section class="panel content">
+        <h2>결과</h2>
+        <div id="message" class="notice warn">이 앱은 교사용 전처리 도구입니다. 학생에게는 원자료가 아닌 익명화된 분석 자료 또는 개인별 자료만 제공합니다.</div>
+        <div class="notice">
+          <strong>수면 상태 5단계 기준</strong><br>
+          🔴 7시간 미만 → 수면 부족<br>
+          🟠 7~8시간 미만 → 적당한 수면 (개인차)<br>
+          🟢 8~10시간 이하 → 권장 수면<br>
+          🟡 10시간 초과~11시간 미만 → 적당한 수면 (개인차)<br>
+          🟣 11시간 이상 → 수면 과다
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="actions">
+          <button id="downloadTeacher" disabled>📥 교사용 전체 전처리 결과</button>
+        </div>
+
+        <div class="dl-section" id="dlSection" style="display:none;">
+          <div class="dl-row">
+            <span class="dl-label">[교사용] 차시·반별 검수</span>
+            <div class="dl-controls">
+              <select id="reviewLesson">
+                <option value="2">2차시</option>
+                <option value="3">3차시</option>
+                <option value="4">4차시</option>
+                <option value="6">6차시</option>
+              </select>
+              <select id="classSelectReview"><option value="">반 선택</option></select>
+              <button id="downloadReview" class="secondary" disabled>📥 교사용 차시·반별 검수 자료</button>
+            </div>
+          </div>
+          <div class="dl-row">
+            <span class="dl-label">[2차시] 내 데이터 점검</span>
+            <div class="dl-controls">
+              <input id="dataCheckStart" type="date" title="점검 시작일" />
+              <span style="font-size:12px; color:#667085;">~</span>
+              <input id="dataCheckEnd" type="date" title="점검 종료일" />
+              <select id="classForCheck"><option value="">반 선택</option></select>
+              <select id="studentCheckSelect"><option value="">학생 선택</option></select>
+              <button id="downloadDataCheck" class="secondary" disabled>📥 내 데이터 점검 엑셀 다운로드</button>
+              <button id="downloadDataCheckZip" class="secondary" disabled>📥 개인별 점검 자료 ZIP</button>
+            </div>
+          </div>
+          <div class="dl-row">
+            <span class="dl-label">[3차시] 반별 시각화·반별 비교</span>
+            <div class="dl-controls">
+              <select id="classSelect"><option value="">반 선택</option></select>
+              <button id="downloadByClass" class="secondary">📥 3차시용 선택 반 활동지</button>
+              <button id="downloadAllClass" class="secondary">📥 전체 반 활동지 일괄 생성</button>
+            </div>
+          </div>
+          <div class="dl-row">
+            <span class="dl-label">[4차시] 개인 데이터 + 반별 분석</span>
+            <div class="dl-controls">
+              <select id="classForStudent"><option value="">반 선택</option></select>
+              <select id="studentSelect"><option value="">학생 선택</option></select>
+              <button id="downloadOneStudent" class="secondary">📥 4차시용 개인별 분석 자료</button>
+              <button id="downloadAllStudents" class="secondary">📥 개인별 분석 자료 ZIP</button>
+              <span style="font-size:11px; color:#667085;">개인별 분석 자료는 교사용으로 생성됩니다. 학생에게는 전체 ZIP 파일을 공유하지 말고, 해당 학생의 파일만 개별 전달하세요.</span>
+            </div>
+          </div>
+          <div class="dl-row">
+            <span class="dl-label">[4차시] 의사결정트리 분석</span>
+            <div class="dl-controls">
+              <select id="classSelectTree"><option value="">전체</option></select>
+              <span style="font-size:12px; color:#667085;">0mg 미섭취 기록 포함 · 빈칸 기록 제외</span>
+              <button id="downloadCsv" class="secondary" disabled>📥 4차시용 의사결정트리 CSV</button>
+              <button id="downloadAiSummary" class="secondary" disabled>📥 4차시용 의사결정트리 해석 요약표</button>
+              <button id="treeDraw" class="secondary" disabled>🌳 AI 패턴 탐색 결과 보기</button>
+            </div>
+            <div id="treePanel" style="display:none; margin-top:12px; flex:0 0 100%; width:100%;"></div>
+          </div>
+          <div class="dl-row">
+            <span class="dl-label">[6차시] 전후 데이터 비교</span>
+            <div class="dl-controls">
+              <input id="beforeExperimentStart" type="date" title="실험 전 시작일" />
+              <span style="font-size:12px; color:#667085;">~</span>
+              <input id="beforeExperimentEnd" type="date" title="실험 전 종료일" />
+              <span style="font-size:12px; color:#667085;">비교</span>
+              <input id="experimentStart" type="date" title="행동 실험 시작일" />
+              <span style="font-size:12px; color:#667085;">~</span>
+              <input id="experimentEnd" type="date" title="행동 실험 종료일" />
+              <select id="classSelectCompare"><option value="">반 선택</option></select>
+              <input id="compareNameFilter" type="text" placeholder="이름 필터" style="max-width:120px;" />
+              <select id="studentCompareSelect"><option value="">학생 선택</option></select>
+              <button id="downloadBeforeAfterOne" class="secondary" disabled>📥 6차시용 개인 전후 비교 자료</button>
+              <button id="downloadBeforeAfter" class="secondary" disabled>📥 6차시용 전후 비교 자료 (반/필터)</button>
+              <button id="downloadBeforeAfterZip" class="secondary" disabled>📥 개인별 전후 비교 자료 ZIP</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="progress-bar-wrap" id="progressWrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="tabs" id="tabs"></div>
+        <div id="table" class="table-wrap"><div class="empty">아직 표시할 데이터가 없습니다.</div></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const aliases = {
+      students: ["students", "student", "학생", "학생정보"],
+      caffeine: ["caffeine", "카페인", "섭취"],
+      sleep: ["sleep", "수면"],
+      info: ["info", "기본정보", "조사정보"],
+      caffeine_db: ["caffeine_db", "카페인_db", "음료db", "음료 DB"]
+    };
+
+    let state = null;
+    let activeTab = "teacherAnalysis";
+
+    const $ = id => document.getElementById(id);
+    const compact = value => String(value ?? "").toLowerCase().replace(/\s/g, "");
+    const num = value => {
+      const n = Number(String(value ?? "").replace(/,/g, ""));
+      return Number.isFinite(n) ? n : null;
+    };
+    const idText = value => String(value ?? "").replace(/\.0$/, "").trim();
+    const pad = (n, width = 2) => String(Number(n || 0)).padStart(width, "0");
+    const round = (n, d = 2) => Number.isFinite(Number(n)) ? Number(Number(n).toFixed(d)) : "";
+    const SLEEP_MIN_H = 2;
+    const SLEEP_MAX_H = 12;
+    const SLEEP_GOOD_THRESHOLD = 4; // 5개 수면 결과 항목 중 4개(80%). 코드 고정값.
+    const MIN_GOOD_LEAF = 8; // 수면양호 기록이 적을 때 해석 주의 알림을 띄우는 고정값.
+    const TREE_MAX_DEPTH = 2;
+    const TREE_MIN_CHILD_N = 10;
+    const TREE_MIN_SECOND_CHILD_N = 5;
+    const TREE_MIN_CLASS_N = 3;
+    const TREE_MIN_GAIN = 0.05;
+    const TREE_MIN_SECOND_GAIN = 0.10;
+    const VISUAL_TREE_MAX_DEPTH = 3;
+    const VISUAL_TREE_MIN_LEAF_N = 3;
+    const sleepDateColumns = ["취침날짜", "취침 날짜", "잠든 날짜", "날짜", "수면날짜", "수면 날짜", "수면기록"];
+    const parseMg = value => {
+      const n = Number(String(value ?? "").replace(/,/g, "").replace(/[^0-9.+-]/g, "").trim());
+      return Number.isFinite(n) ? n : null;
+    };
+
+    function hashAnonId(seed) {
+      const text = `caffeine-sleep-v3:${String(seed ?? "").trim()}`;
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      const code = (hash >>> 0).toString(36).toUpperCase().padStart(7, "0");
+      return `P${code.slice(0, 3)}-${code.slice(3, 7)}`;
+    }
+
+    function findSheet(workbook, logical) {
+      const names = workbook.SheetNames;
+      const keys = aliases[logical].map(compact);
+      return names.find(name => keys.includes(compact(name)) || keys.some(key => compact(name).includes(key))) || null;
+    }
+
+    function sheetRows(workbook, sheetName) {
+      if (!sheetName) return [];
+      return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" })
+        .map((row, index) => ({ __rowNum: index + 2, ...row }));
+    }
+
+    function firstExisting(row, candidates) {
+      const map = {};
+      Object.keys(row || {}).forEach(k => { map[compact(k)] = k; });
+      for (const c of candidates) {
+        if (map[compact(c)]) return map[compact(c)];
+      }
+      return null;
+    }
+
+    function value(row, candidates) {
+      const key = firstExisting(row, candidates);
+      return key ? row[key] : "";
+    }
+
+    function parseDateTimeFlexible(value) {
+      if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+      if (typeof value === "number") {
+        const parsed = XLSX.SSF.parse_date_code(value);
+        if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, Math.floor(parsed.S || 0));
+      }
+      const raw = String(value ?? "").trim();
+      if (!raw) return null;
+      let text = raw
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/[.]/g, "-")
+        .replace(/\//g, "-")
+        .replace(/년/g, "-")
+        .replace(/월/g, "-")
+        .replace(/일/g, " ")
+        .trim();
+      const isPM = /오후|PM/i.test(raw);
+      const isAM = /오전|AM/i.test(raw);
+      text = text.replace(/오전|오후|AM|PM/gi, "").trim();
+      const match = text.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?/);
+      if (match) {
+        let [, y, m, d, h = "0", min = "0", sec = "0"] = match;
+        let hour = Number(h);
+        if (isPM && hour < 12) hour += 12;
+        if (isAM && hour === 12) hour = 0;
+        const dt = new Date(Number(y), Number(m) - 1, Number(d), hour, Number(min), Number(sec));
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      }
+      const fallback = new Date(raw);
+      return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    function excelSerialDateOnly(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      const days = Math.floor(n);
+      const utc = new Date(Date.UTC(1899, 11, 30) + days * 86400000);
+      return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+    }
+
+    function parseDateFlexible(value) {
+      if (typeof value === "number") {
+        return excelSerialDateOnly(value);
+      }
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+      }
+      const dt = parseDateTimeFlexible(value);
+      if (!dt) return null;
+      return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    }
+
+    function excelDateToDate(value) {
+      return parseDateTimeFlexible(value);
+    }
+
+    function dateKey(value) {
+      const dt = parseDateFlexible(value);
+      if (!dt) return "";
+      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+    }
+
+    function dateKeyFlexible(value) {
+      return dateKey(value);
+    }
+
+    function displayDateValue(value, includeTime = false) {
+      const dt = includeTime ? parseDateTimeFlexible(value) : parseDateFlexible(value);
+      if (!dt) return String(value ?? "");
+      const date = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+      if (!includeTime) return date;
+      return `${date} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    }
+
+    function timeText(value) {
+      if (value instanceof Date) return `${pad(value.getHours())}:${pad(value.getMinutes())}`;
+      if (typeof value === "number") {
+        const parsed = XLSX.SSF.parse_date_code(value);
+        if (parsed) return `${pad(parsed.H || 0)}:${pad(parsed.M || 0)}`;
+      }
+      const text = String(value ?? "").trim();
+      if (!text) return "";
+      const match = text.match(/(\d{1,2}):(\d{2})/);
+      if (match) return `${pad(match[1])}:${match[2]}`;
+      const dt = parseDateTimeFlexible(text);
+      return dt ? `${pad(dt.getHours())}:${pad(dt.getMinutes())}` : text;
+    }
+
+    function formatOriginalRowsForExport(rows, rules) {
+      return rows.map(row => {
+        const out = { ...row };
+        rules.forEach(rule => {
+          const key = firstExisting(out, rule.candidates);
+          if (!key) return;
+          if (rule.type === "datetime") out[key] = displayDateValue(out[key], true);
+          if (rule.type === "date") out[key] = displayDateValue(out[key], false);
+          if (rule.type === "bedDate") out[key] = sleepBedDateKey(out);
+          if (rule.type === "time") out[key] = timeText(out[key]);
+        });
+        return out;
+      });
+    }
+
+    function sleepBedDateKey(row) {
+      const dateValue = value(row, sleepDateColumns);
+      const dt = parseDateFlexible(dateValue);
+      if (!dt) return displayDateValue(dateValue, false);
+      const bedHour = hourOf(value(row, ["취침시간", "취침 시간"]));
+      return dateKeyFlexible(bedHour !== null && bedHour < 4 ? addDays(dt, -1) : dt);
+    }
+
+    function formatSleepRowsForExport(rows) {
+      return formatOriginalRowsForExport(rows, [
+        { candidates: ["타임스탬프", "timestamp"], type: "datetime" },
+        { candidates: sleepDateColumns, type: "bedDate" },
+        { candidates: ["기상날짜", "기상 날짜", "일어난 날짜", "기상일"], type: "date" },
+        { candidates: ["취침시간", "취침 시간"], type: "time" },
+        { candidates: ["기상시간", "기상 시간"], type: "time" },
+      ]);
+    }
+
+    function appendJsonSheet(wb, rows, sheetName, options = {}) {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      if (options.statusColumn) {
+        applyStatusRowFill(ws, rows, options.statusColumn, options.statusValues || ["수정 필요", "확인필요"]);
+      }
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      return ws;
+    }
+
+    function applyStatusRowFill(ws, rows, statusColumn, statusValues) {
+      if (!rows?.length || !ws["!ref"]) return;
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      const headers = [];
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        headers[col] = ws[XLSX.utils.encode_cell({ r: range.s.r, c: col })]?.v;
+      }
+      const statusCol = headers.findIndex(header => header === statusColumn);
+      if (statusCol < range.s.c) return;
+      const target = new Set(statusValues);
+      rows.forEach((row, idx) => {
+        if (!target.has(row[statusColumn])) return;
+        const excelRow = range.s.r + idx + 1;
+        const addr = XLSX.utils.encode_cell({ r: excelRow, c: statusCol });
+        if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+        ws[addr].s = {
+          ...(ws[addr].s || {}),
+          fill: { patternType: "solid", fgColor: { rgb: "F4CCCC" } },
+          font: { ...(ws[addr].s?.font || {}), color: { rgb: "C00000" } }
+        };
+      });
+    }
+
+    function hourOf(value) {
+      const text = timeText(value);
+      const match = text.match(/^(\d{1,2}):(\d{2})/);
+      return match ? Number(match[1]) + Number(match[2]) / 60 : null;
+    }
+
+    function dateTime(value) {
+      const direct = parseDateTimeFlexible(value);
+      if (direct && (direct.getHours() || direct.getMinutes() || String(value).includes(":"))) return direct;
+      return direct;
+    }
+
+    function buildSleepWindow(recordDate, bedtime, wakeTime, basis, wakeDateValue = "") {
+      // recordDate는 parseDateFlexible이 반환한 로컬 자정 Date 객체다.
+      // dateKeyFlexible을 쓰면 parseDateFlexible이 재호출되어 로컬 자정을 UTC로 해석,
+      // KST(UTC+9)에서 하루 앞당겨지는 버그가 생긴다. 로컬 시간 메서드로 직접 추출한다.
+      if (!recordDate || Number.isNaN(recordDate.getTime())) return { analysisDate: "", caffeineDate: "", bed: null, wake: null };
+      const base = `${recordDate.getFullYear()}-${pad(recordDate.getMonth() + 1)}-${pad(recordDate.getDate())}`;
+      const wakeDate = parseDateFlexible(wakeDateValue) || recordDate;
+      const wakeBase = `${wakeDate.getFullYear()}-${pad(wakeDate.getMonth() + 1)}-${pad(wakeDate.getDate())}`;
+
+      let analysisDate = base;
+      let bed = bedtime ? parseDateTimeFlexible(`${base}T${bedtime}:00`) : null;
+      let wake = wakeTime ? parseDateTimeFlexible(`${wakeBase}T${wakeTime}:00`) : null;
+      if (bed && wake && wake <= bed) wake.setDate(wake.getDate() + 1);
+
+      if (basis === "wakeup") {
+        // 00:00~03:59 새벽 취침은 학생 활동지에서 전날 밤 수면으로 보는 것이 자연스럽다.
+        // 실제 bed 시각은 카페인 24시간 연결 계산에 써야 하므로 그대로 둔다.
+        if (bed && bed.getHours() < 4) {
+          analysisDate = dateKeyFlexible(addDays(recordDate, -1));
+        } else if (bed) {
+          analysisDate = dateKeyFlexible(bed);
+        }
+        return { analysisDate, caffeineDate: analysisDate, bed, wake };
+      }
+
+      // 취침일 기준 파일을 넣는 경우에는 분석일을 취침일로 유지하고, 기상 시각만 다음 날로 보정한다.
+      if (bed && bed.getHours() < 4) analysisDate = dateKeyFlexible(addDays(recordDate, -1));
+      return { analysisDate, caffeineDate: analysisDate, bed, wake };
+    }
+
+    function normalizeChoice(value) {
+      return String(value ?? "")
+        .trim()
+        .replace(/[\u200b-\u200d\ufeff\ufe0e\ufe0f]/g, "")
+        .normalize("NFC")
+        .replace(/\s/g, "")
+        .replace(/－/g, "~")
+        .replace(/-/g, "~")
+        .replace(/〜/g, "~")
+        .replace(/–/g, "~")
+        .replace(/↑/g, "이상");
+    }
+
+    function scoreConditionEmoji(value) {
+      const text = String(value ?? "").trim().replace(/[\u200b-\u200d\ufeff\ufe0e\ufe0f]/g, "").normalize("NFC");
+      if (!text) return "";
+      const chars = Array.from(text);
+      if (chars.length !== 1) return "";
+      const scoreByCodePoint = new Map([
+        [0x1F62B, 1], // 😫
+        [0x1F634, 2], // 😴
+        [0x1F610, 3], // 😐
+        [0x1F642, 4], // 🙂
+        [0x1F60A, 5], // 😊
+      ]);
+      return scoreByCodePoint.get(chars[0].codePointAt(0)) || "";
+    }
+
+    function scoreByChoice(value, mapping) {
+      const raw = String(value ?? "").trim();
+      if (!raw) return { score: "", error: "응답 누락" };
+      const normalized = normalizeChoice(raw);
+      const hit = mapping.find(item => item.keys.some(key => normalizeChoice(key) === normalized));
+      return hit ? { score: hit.score, error: "" } : { score: "", error: "선택지 외 값" };
+    }
+
+    const fourLevelTimeChoices = [
+      { score: 1, keys: ["안 함", "안함", "없음", "0분"] },
+      { score: 2, keys: ["30분 미만", "30분미만"] },
+      { score: 3, keys: ["30~60분", "30분~60분", "30-60분", "30분-60분"] },
+      { score: 4, keys: ["60분 이상", "60분이상", "1시간 이상", "1시간이상"] },
+    ];
+
+    function scoreActivityChoice(value) { return scoreByChoice(value, fourLevelTimeChoices); }
+    function scorePhoneChoice(value) { return scoreByChoice(value, fourLevelTimeChoices); }
+    function scoreSleepLatencyChoice(value) {
+      return scoreByChoice(value, [
+        { score: 1, keys: ["15분 이내", "15분 이하", "15분 미만", "15분이내", "15분이하", "15분미만"] },
+        { score: 2, keys: ["15~30분", "15분~30분", "15-30분", "15분-30분"] },
+        { score: 3, keys: ["30~60분", "30분~60분", "30-60분", "30분-60분"] },
+        { score: 4, keys: ["60분 이상", "60분이상", "1시간 이상", "1시간이상"] },
+      ]);
+    }
+    function scoreAwakeningChoice(value) {
+      return scoreByChoice(value, [
+        { score: 1, keys: ["없음", "안 깸", "안깸", "0번"] },
+        { score: 2, keys: ["1번", "1회"] },
+        { score: 3, keys: ["2번", "2회"] },
+        { score: 4, keys: ["3번↑", "3번 이상", "3회 이상", "3번", "3회"] },
+      ]);
+    }
+    function scoreDrowsyChoice(value) {
+      return scoreByChoice(value, [
+        { score: 1, keys: ["없음", "전혀 없음", "전혀 없었음"] },
+        { score: 2, keys: ["조금 있었음", "조금", "약간 있었음"] },
+        { score: 3, keys: ["꽤 힘들었음", "힘들었음"] },
+        { score: 4, keys: ["매우 심했음", "매우 심함", "매우 힘들었음", "심했음"] },
+      ]);
+    }
+    function scoreConditionChoice(value) {
+      const emojiScore = scoreConditionEmoji(value);
+      if (emojiScore !== "") return { score: emojiScore, error: "" };
+      return scoreByChoice(value, [
+        { score: 1, keys: ["😫"] },
+        { score: 2, keys: ["😴"] },
+        { score: 3, keys: ["😐"] },
+        { score: 4, keys: ["🙂"] },
+        { score: 5, keys: ["😊"] },
+      ]);
+    }
+
+    function sleepBand(hours) {
+      if (!Number.isFinite(Number(hours))) return "확인필요";
+      const h = Number(hours);
+      if (h < 5) return "매우짧음";
+      if (h < 7) return "짧음";
+      if (h <= 9) return "적정";
+      if (h <= 10) return "긴편";
+      return "매우긴편";
+    }
+
+    function classifySleepHours(hours) {
+      if (!Number.isFinite(Number(hours))) return "";
+      const h = Number(hours);
+      if (h < 7) return "수면 부족";
+      if (h < 8) return "적당한 수면";
+      if (h <= 10) return "권장 수면";
+      if (h < 11) return "적당한 수면";
+      return "수면 과다";
+    }
+
+    function avg(rows, key) {
+      const vals = rows.map(r => Number(r[key])).filter(Number.isFinite);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : "";
+    }
+
+    function groupBy(rows, keys) {
+      const map = new Map();
+      rows.forEach(row => {
+        const key = keys.map(k => row[k] ?? "").join("||");
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(row);
+      });
+      return [...map.entries()].map(([key, rows]) => ({ key, rows }));
+    }
+
+    function summarizeDrinkCounts(records) {
+      const counts = new Map();
+      records.forEach(record => {
+        const drink = String(record.drink || "미상").trim() || "미상";
+        counts.set(drink, (counts.get(drink) || 0) + 1);
+      });
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+        .map(([drink, count]) => `${drink}(${count})`)
+        .join(", ");
+    }
+
+    function buildInfoMap(workbook, sheetName) {
+      const map = new Map();
+      sheetRows(workbook, sheetName).forEach(row => {
+        const sid = idText(value(row, ["전체학번", "학번", "학생ID", "id"]));
+        if (!sid) return;
+        const targetCaf = parseMg(value(row, ["목표 카페인섭취량", "목표카페인섭취량", "목표 카페인 섭취량", "목표카페인"]));
+        const weight = parseMg(value(row, ["몸무게", "체중", "몸무게(kg)", "체중(kg)"]));
+        const personalLimit = targetCaf && targetCaf > 0
+          ? Math.round(targetCaf)
+          : Math.round((weight && weight > 0 ? weight : 60) * 2.5);
+        map.set(sid, {
+          카페인개인한도_mg: personalLimit,
+          몸무게_kg: weight || "",
+        });
+      });
+      return map;
+    }
+
+    function studentTaskRows(rows) {
+      return rows.map(row => ({ ...row }));
+    }
+
+    const conditionTable = [
+      { 컨디션입력값: "😫", 텍스트: "매우 나쁨", 점수: 1 },
+      { 컨디션입력값: "😴", 텍스트: "나쁨", 점수: 2 },
+      { 컨디션입력값: "😐", 텍스트: "보통", 점수: 3 },
+      { 컨디션입력값: "🙂", 텍스트: "좋음", 점수: 4 },
+      { 컨디션입력값: "😊", 텍스트: "매우 좋음", 점수: 5 },
+    ];
+
+    const visualizationColumns = [
+      "반", "익명ID", "분석일", "일일카페인총량_mg", "카페인섭취횟수", "주요음료", "오전카페인여부", "오후카페인여부", "저녁카페인여부",
+      "취침전카페인간격_h", "수면시간_h", "수면컨디션_점수", "취침전스마트폰_점수",
+      "수면잠복기_점수", "중도각성_점수", "낮졸음집중력_점수", "수면시간_분류", "권장수면여부", "수면양호여부"
+    ];
+    const treeColumns = [
+      "일일카페인총량_mg", "카페인섭취횟수", "오전카페인여부", "오후카페인여부", "저녁카페인여부",
+      "카페인섭취시간대수",
+      "취침4시간이내카페인여부", "취침6시간이내카페인여부", "취침8시간이내카페인여부", "취침12시간이내카페인여부",
+      "취침전스마트폰_점수", "신체활동_점수", "수면양호여부"
+    ];
+    const TREE_FEATURES = [
+      "일일카페인총량_mg",
+      "카페인섭취횟수",
+      "오전카페인여부",
+      "오후카페인여부",
+      "저녁카페인여부",
+      "카페인섭취시간대수",
+      "취침4시간이내카페인여부",
+      "취침6시간이내카페인여부",
+      "취침8시간이내카페인여부",
+      "취침12시간이내카페인여부",
+      "취침전스마트폰_점수",
+      "신체활동_점수"
+    ];
+    const TREE_TARGET = "수면양호여부";
+
+    function pickColumns(row, columns) {
+      const out = {};
+      columns.forEach(col => { out[col] = row[col] ?? ""; });
+      return out;
+    }
+
+    function oneColumnSheet(lines, header = "내용") {
+      return lines.map(line => ({ [header]: line }));
+    }
+
+    function questionSheet(lines) {
+      return lines.map((line, index) => ({ 번호: index + 1, 질문: line, 답변: "" }));
+    }
+
+    function classDailyRows(klass) {
+      return state.studentAnalysis.filter(row => !klass || String(row.반) === String(klass));
+    }
+
+    function setTabColor(ws, rgb = "FFFFFF00") {
+      ws["!tabColor"] = { rgb };
+      return ws;
+    }
+
+    function setWorkbookTabColor(wb, sheetName, rgb = "FFFFFF00") {
+      wb.Workbook = wb.Workbook || {};
+      wb.Workbook.Sheets = wb.Workbook.Sheets || [];
+      const index = wb.SheetNames.indexOf(sheetName);
+      if (index < 0) return;
+      wb.Workbook.Sheets[index] = wb.Workbook.Sheets[index] || {};
+      wb.Workbook.Sheets[index].name = sheetName;
+      wb.Workbook.Sheets[index].TabColor = { rgb };
+    }
+
+    function appendJsonSheetWithTabColor(wb, rows, sheetName, rgb = "FFFFFF00") {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      setTabColor(ws, rgb);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      setWorkbookTabColor(wb, sheetName, rgb);
+      return ws;
+    }
+
+    function classDrinkRows(klass) {
+      const result = [];
+      classDailyRows(klass).forEach(row => {
+        const drinks = parseDrinkSummary(row.주요음료);
+        if (drinks.size === 0) return;
+        drinks.forEach((count, drink) => {
+          result.push({
+            익명번호: row.익명ID,
+            분석일: row.분석일,
+            음료명: drink,
+            섭취횟수: count,
+            수면시간_h: row.수면시간_h,
+            수면컨디션_점수: row.수면컨디션_점수,
+            수면양호여부: row.수면양호여부,
+          });
+        });
+      });
+      return result;
+    }
+
+    function classDailyRawRows(klass) {
+      return classDailyRows(klass).map(row => ({
+        익명번호: row.익명ID,
+        분석일: row.분석일,
+        일일카페인총량_mg: row.일일카페인총량_mg,
+        오전카페인여부: row.오전카페인여부,
+        오후카페인여부: row.오후카페인여부,
+        저녁카페인여부: row.저녁카페인여부,
+        취침전카페인간격_h: row.취침전카페인간격_h,
+        수면시간_h: row.수면시간_h,
+        수면컨디션_점수: row.수면컨디션_점수,
+        수면잠복기_점수: row.수면잠복기_점수,
+        중도각성_점수: row.중도각성_점수,
+        수면양호여부: row.수면양호여부,
+        취침시간대: bedtimeBand(row.취침시간),
+        신체활동_점수: row.신체활동_점수,
+        취침전스마트폰_점수: row.취침전스마트폰_점수,
+        취침시각_h: hourOf(row.취침시간) ?? "",
+        기상시각_h: hourOf(row.기상시간) ?? "",
+      }));
+    }
+
+    function classScatterRows(klass) {
+      return groupBy(classDailyRows(klass), ["익명ID"]).map(({ rows }) => ({
+        익명번호: rows[0].익명ID,
+        평균카페인량: round(avg(rows, "일일카페인총량_mg"), 1),
+        오전카페인횟수: rows.reduce((sum, row) => sum + Number(row.오전카페인여부 || 0), 0),
+        오후카페인횟수: rows.reduce((sum, row) => sum + Number(row.오후카페인여부 || 0), 0),
+        저녁카페인횟수: rows.reduce((sum, row) => sum + Number(row.저녁카페인여부 || 0), 0),
+        평균수면시간: round(avg(rows, "수면시간_h"), 2),
+        평균수면컨디션점수: round(avg(rows, "수면컨디션_점수"), 2),
+        평균수면잠복기점수: round(avg(rows, "수면잠복기_점수"), 2),
+        평균중도각성점수: round(avg(rows, "중도각성_점수"), 2),
+        평균취침전스마트폰점수: round(avg(rows, "취침전스마트폰_점수"), 2),
+        평균신체활동점수: round(avg(rows, "신체활동_점수"), 2),
+      }));
+    }
+
+    function countMapToRows(map, valueName = "기록수") {
+      return [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ko"))
+        .map(([name, count]) => ({ 구분: name, [valueName]: count }));
+    }
+
+    function parseDrinkSummary(summary) {
+      const map = new Map();
+      String(summary || "").split(",").forEach(part => {
+        const match = part.trim().match(/^(.+?)\((\d+)\)$/);
+        if (!match) return;
+        const drink = match[1].trim();
+        const count = Number(match[2] || 0);
+        map.set(drink, (map.get(drink) || 0) + count);
+      });
+      return map;
+    }
+
+    function caffeineDrinkRows(klass) {
+      const counts = new Map();
+      classDailyRows(klass).forEach(row => {
+        parseDrinkSummary(row.주요음료).forEach((count, drink) => counts.set(drink, (counts.get(drink) || 0) + count));
+      });
+      return countMapToRows(counts, "섭취횟수");
+    }
+
+    function caffeineTimeBand(hour) {
+      if (!Number.isFinite(hour)) return "시간 미상";
+      if (hour < 12) return "오전";
+      if (hour < 14) return "점심 전후";
+      if (hour < 18) return "오후";
+      if (hour < 21) return "저녁";
+      return "밤";
+    }
+
+    function bedtimeBand(text) {
+      const h = hourOf(text);
+      if (!Number.isFinite(h)) return "시간 미상";
+      if (h < 1) return "0시대";
+      if (h < 12) return "1시 이후";
+      if (h < 22 && h >= 12) return "22시 이전";
+      if (h < 23) return "22시대";
+      if (h < 24) return "23시대";
+      return "1시 이후";
+    }
+
+    function wakeBand(text) {
+      const h = hourOf(text);
+      if (!Number.isFinite(h)) return "시간 미상";
+      if (h < 6) return "6시 이전";
+      if (h < 7) return "6시대";
+      if (h < 8) return "7시대";
+      return "8시 이후";
+    }
+
+    function caffeineTimeRows(klass) {
+      const counts = new Map();
+      classDailyRows(klass).forEach(row => {
+        if (!row.최후섭취시각 || Number(row.카페인섭취횟수 || 0) <= 0) return;
+        const band = caffeineTimeBand(hourOf(row.최후섭취시각));
+        counts.set(band, (counts.get(band) || 0) + Number(row.카페인섭취횟수 || 0));
+      });
+      return ["오전", "점심 전후", "오후", "저녁", "밤", "시간 미상"].map(band => ({ 시간대: band, 섭취횟수: counts.get(band) || 0 }));
+    }
+
+    function flagCompareRows(klass) {
+      const rows = classDailyRows(klass);
+      const summarize = (label, subset) => ({
+        구분: label,
+        기록수: subset.length,
+        평균수면시간: round(avg(subset, "수면시간_h"), 2),
+        평균수면컨디션: round(avg(subset, "수면컨디션_점수"), 2),
+        평균수면잠복기: round(avg(subset, "수면잠복기_점수"), 2),
+        수면양호비율: subset.length ? round(subset.reduce((sum, row) => sum + Number(row.수면양호여부 || 0), 0) / subset.length, 3) : "",
+      });
+      return [
+        summarize("카페인 기록 없음/확인 필요", rows.filter(row => row.일일카페인총량_mg === "" || row.일일카페인총량_mg === null || row.일일카페인총량_mg === undefined)),
+        summarize("카페인 0mg 미섭취 기록", rows.filter(row => Number(row.일일카페인총량_mg) === 0)),
+        summarize("카페인 1mg 이상 섭취 기록", rows.filter(row => Number(row.일일카페인총량_mg) > 0)),
+        summarize("오전 카페인 있음", rows.filter(row => Number(row.오전카페인여부) === 1)),
+        summarize("오전 카페인 없음", rows.filter(row => Number(row.오전카페인여부) !== 1)),
+        summarize("오후 카페인 있음", rows.filter(row => Number(row.오후카페인여부) === 1)),
+        summarize("오후 카페인 없음", rows.filter(row => Number(row.오후카페인여부) !== 1)),
+        summarize("저녁 카페인 있음", rows.filter(row => Number(row.저녁카페인여부) === 1)),
+        summarize("저녁 카페인 없음", rows.filter(row => Number(row.저녁카페인여부) !== 1)),
+      ];
+    }
+
+    function distributionRows(klass, key, bandFn, order, labelName = "구분") {
+      const counts = new Map();
+      classDailyRows(klass).forEach(row => {
+        const label = bandFn ? bandFn(row[key]) : (row[key] || "미상");
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
+      return order.map(label => ({ [labelName]: label, 기록수: counts.get(label) || 0 }));
+    }
+
+    function makeVariableDescriptions(options = { afternoonHour: 15, eveningHour: 18 }) {
+      return [
+        { 변수명: "안내", 의미: "점수는 선택지를 숫자로 바꾼 값입니다.", 값설명: "항목마다 최대 점수가 다를 수 있습니다.", 점수방향: "모든 점수가 높을수록 좋은 것은 아니므로 점수 방향을 확인하세요." },
+        { 변수명: "일일카페인총량_mg", 의미: "하루 동안 섭취한 카페인 총량", 값설명: "숫자가 클수록 카페인 섭취량이 많음", 점수방향: "높을수록 섭취 많음" },
+        { 변수명: "카페인섭취횟수", 의미: "카페인 집계구간 안에서 0mg 미섭취 기록을 제외한 실제 카페인 음료 섭취 횟수", 값설명: "0, 1, 2, 3... / 카페인 함량이 0mg보다 큰 기록만 셈", 점수방향: "높을수록 섭취 잦음" },
+        { 변수명: "주요음료", 의미: "카페인 집계구간 안의 음료명별 섭취 횟수", 값설명: "예: 아메리카노(2), 밀크티(1)", 점수방향: "음료 구성 확인용" },
+        { 변수명: "오전카페인여부", 의미: "카페인 집계구간 안에서 12:00 이전 실제 카페인 섭취 여부", 값설명: "1=12:00 이전 섭취 있음, 0=없음 / 0mg 미섭취 기록 제외", 점수방향: "1이면 오전 섭취 있음" },
+        { 변수명: "오후카페인여부", 의미: `카페인 집계구간 안에서 ${options.afternoonHour}:00 이후 실제 카페인 섭취 여부`, 값설명: `1=${options.afternoonHour}:00 이후 섭취 있음, 0=없음 / 0mg 미섭취 기록 제외`, 점수방향: "1이면 오후 섭취 있음" },
+        { 변수명: "저녁카페인여부", 의미: `카페인 집계구간 안에서 ${options.eveningHour}:00 이후 실제 카페인 섭취 여부`, 값설명: `1=${options.eveningHour}:00 이후 섭취 있음, 0=없음 / 0mg 미섭취 기록 제외`, 점수방향: "1이면 저녁 섭취 있음" },
+        { 변수명: "카페인섭취시간대수", 의미: "오전·오후·저녁 중 카페인을 마신 시간대 개수", 값설명: "0=없음, 1=한 시간대, 2=두 시간대, 3=세 시간대", 점수방향: "높을수록 여러 시간대에 걸쳐 섭취" },
+        { 변수명: "카페인집계구간", 의미: "해당 수면에 영향을 줄 수 있는 카페인 집계 시간 범위", 값설명: "취침 전 24시간부터 실제 취침시각까지", 점수방향: "시간 순서 확인용" },
+        { 변수명: "취침전카페인간격_h", 의미: "마지막 카페인 섭취와 취침 사이 시간 차이", 값설명: "시간 단위", 점수방향: "작을수록 취침에 가까운 섭취" },
+        { 변수명: "취침4시간이내카페인여부", 의미: "취침 4시간 이내 실제 카페인 섭취 여부", 값설명: "1=섭취 있음, 0=없음", 점수방향: "1이면 취침에 가까운 섭취" },
+        { 변수명: "취침6시간이내카페인여부", 의미: "취침 6시간 이내 실제 카페인 섭취 여부", 값설명: "1=섭취 있음, 0=없음", 점수방향: "1이면 취침에 가까운 섭취" },
+        { 변수명: "취침8시간이내카페인여부", 의미: "취침 8시간 이내 실제 카페인 섭취 여부", 값설명: "1=섭취 있음, 0=없음", 점수방향: "1이면 취침에 가까운 섭취" },
+        { 변수명: "취침12시간이내카페인여부", 의미: "취침 12시간 이내 실제 카페인 섭취 여부", 값설명: "1=섭취 있음, 0=없음", 점수방향: "1이면 취침에 가까운 섭취" },
+        { 변수명: "수면시간_h", 의미: "실제 수면 시간", 값설명: "시간 단위", 점수방향: "수업 기준에 따라 해석" },
+        { 변수명: "취침전스마트폰_점수", 의미: "취침 전 스마트폰 사용 정도", 값설명: "1=안 함, 2=30분 미만, 3=30~60분, 4=60분 이상", 점수방향: "높을수록 사용 많음" },
+        { 변수명: "신체활동_점수", 의미: "어제 신체활동 시간 정도", 값설명: "1=안 함, 2=30분 미만, 3=30~60분, 4=60분 이상", 점수방향: "높을수록 활동 많음" },
+        { 변수명: "수면잠복기_점수", 의미: "잠들기까지 걸린 시간", 값설명: "1=15분 이내, 2=15~30분, 3=30~60분, 4=60분 이상", 점수방향: "높을수록 오래 걸림" },
+        { 변수명: "중도각성_점수", 의미: "자다가 깬 횟수", 값설명: "1=없음, 2=1번, 3=2번, 4=3번 이상", 점수방향: "높을수록 자주 깸" },
+        { 변수명: "수면컨디션_점수", 의미: "기상 후 컨디션", 값설명: "1=😫, 2=😴, 3=😐, 4=🙂, 5=😊", 점수방향: "높을수록 좋음" },
+        { 변수명: "낮졸음집중력_점수", 의미: "낮 동안 졸림·집중력 저하", 값설명: "1=없음, 2=조금 있었음, 3=꽤 힘들었음, 4=매우 심했음", 점수방향: "높을수록 낮 상태가 나쁨" },
+        { 변수명: "수면시간_분류", 의미: "수면시간을 5단계로 분류", 값설명: "수면 부족/적당한 수면/권장 수면/수면 과다", 점수방향: "너무 적거나 많으면 주의" },
+        { 변수명: "권장수면여부", 의미: "수면시간이 8~10시간 권장 범위인지", 값설명: "1=권장 범위, 0=권장 범위 아님", 점수방향: "1이면 권장 수면시간" },
+        { 변수명: "수면양호여부", 의미: "5개 수면 결과 항목 합산 4점 이상(수면시간·컨디션 필수 포함) 시 양호(1). 취침전스마트폰은 생활습관 요인으로 분리되어 판정에서 제외.", 값설명: "1=양호, 0=비양호, 빈칸=분석제외", 점수방향: "목표값" },
+        { 변수명: "숙면여부", 의미: "기존 코드 호환용 열", 값설명: "수면양호여부와 같은 값", 점수방향: "호환용" },
+      ];
+    }
+
+    function makePreprocessStandards(options) {
+      return [
+        { 전처리항목: "날짜 인식", 원자료예시: "카페인=섭취시간, 수면=날짜", 변환결과: "분석일 생성", 이유: "날짜 누락 방지" },
+        { 전처리항목: "날짜 파싱 실패", 원자료예시: "알 수 없는 날짜 형식", 변환결과: "오류확인 표시", 이유: "분석에서 조용히 제외되는 것 방지" },
+        { 전처리항목: "카페인 미섭취", 원자료예시: "0mg", 변환결과: "미섭취 기록으로 분석 포함 + 실제 섭취횟수 제외", 이유: "안 마신 날도 비교 분석에 필요" },
+        { 전처리항목: "카페인 빈칸", 원자료예시: "빈칸", 변환결과: "미섭취로 단정하지 않고 기록 누락 가능성으로 확인", 이유: "빈칸은 안 마신 기록이 아니라 입력이 빠진 상태일 수 있음" },
+        { 전처리항목: "취침전스마트폰 점수화", 원자료예시: "안 함, 30분 미만, 30~60분, 60분 이상", 변환결과: "1~4점", 이유: "선택형 응답을 분석 가능한 숫자로 변환" },
+        { 전처리항목: "신체활동 점수화", 원자료예시: "안 함, 30분 미만, 30~60분, 60분 이상", 변환결과: "1~4점", 이유: "선택형 응답을 분석 가능한 숫자로 변환" },
+        { 전처리항목: "수면잠복기 점수화", 원자료예시: "15분 이내, 15~30분, 30~60분, 60분 이상", 변환결과: "1~4점", 이유: "높을수록 잠드는 데 오래 걸림" },
+        { 전처리항목: "중도각성 점수화", 원자료예시: "없음, 1번, 2번, 3번↑", 변환결과: "1~4점", 이유: "높을수록 자주 깸" },
+        { 전처리항목: "수면컨디션 점수화", 원자료예시: "😫, 😴, 😐, 🙂, 😊", 변환결과: "1~5점", 이유: "높을수록 기상 후 컨디션이 좋음" },
+        { 전처리항목: "낮졸음집중력 점수화", 원자료예시: "없음, 조금 있었음, 꽤 힘들었음, 매우 심했음", 변환결과: "1~4점", 이유: "높을수록 낮 상태가 나쁨" },
+        { 전처리항목: "선택지 외 값 처리", 원자료예시: "5분, 20분, 많이 깸", 변환결과: "점수 빈칸 + 오류확인 표시", 이유: "선택지 외 입력을 임의로 판단하지 않기 위함" },
+        { 전처리항목: "응답 누락 처리", 원자료예시: "빈값", 변환결과: "점수 빈칸 + 오류확인 표시", 이유: "원자료 확인 필요" },
+        { 전처리항목: "오전 카페인", 원자료예시: "12:00 이전", 변환결과: "1", 이유: "오전 섭취 여부 확인" },
+        { 전처리항목: "오후 카페인", 원자료예시: `${options.afternoonHour}:00 이후`, 변환결과: "1", 이유: "오후 섭취 여부 확인" },
+        { 전처리항목: "저녁 카페인", 원자료예시: `${options.eveningHour}:00 이후`, 변환결과: "1", 이유: "수면 전 섭취 여부 확인" },
+        { 전처리항목: "수면시간 이상치", 원자료예시: `${SLEEP_MIN_H}시간 미만, ${SLEEP_MAX_H}시간 초과`, 변환결과: "확인 필요", 이유: "입력 오류 가능성" },
+        { 전처리항목: "수면시간 5단계 분류", 원자료예시: "7h 미만, 7~8h, 8~10h, 10~11h, 11h 이상", 변환결과: "수면 부족/적당한 수면/권장 수면/수면 과다", 이유: "많이 잘수록 무조건 좋다는 오해 방지" },
+        { 전처리항목: "수면양호여부", 원자료예시: "5항목(수면시간·컨디션 필수, 잠복기·중도각성·낮졸음 합산) 4점 이상", 변환결과: "1 또는 0, 결측 항목 있으면 빈칸", 이유: "취침전스마트폰은 생활습관 입력 변수로 분리하고, 수면 결과 항목으로 의사결정트리 목표값 생성" },
+      ];
+    }
+
+    function dateRangeText(values) {
+      const sorted = values.filter(Boolean).sort();
+      return sorted.length ? `${sorted[0]} ~ ${sorted[sorted.length - 1]}` : "";
+    }
+
+    function choiceResultLabel(raw, score) {
+      if (String(raw ?? "").trim() === "") return "응답 누락";
+      return score === "" ? "선택지 외 값" : "정상";
+    }
+
+    function makeComparisonRows(row, includePrivate = true) {
+      const base = includePrivate
+        ? { 반: row.반, 번호: row.번호, 이름: row.이름, 학번: row._학번, 익명ID: row.익명ID, 분석일: row.분석일 }
+        : { 반: row.반, 익명ID: row.익명ID, 분석일: row.분석일 };
+      const rows = [];
+      const add = (항목, 원본값, 전처리값, 전처리결과, 점수방향, 확인메시지 = "", 권장처리 = "") => {
+        rows.push({ ...base, 항목, 원본값, 전처리값, 전처리결과, 점수방향, 확인메시지, ...(includePrivate ? { 권장처리 } : {}) });
+      };
+      add("수면시간", `${row.취침시간 || ""}~${row.기상시간 || ""}`, row.수면시간_h, row.수면시간_h === "" ? "계산 불가" : (Number(row.수면시간_h) < SLEEP_MIN_H || Number(row.수면시간_h) > SLEEP_MAX_H ? "이상치" : "정상"), "시간 자체는 높을수록 좋은 것이 아님", row.데이터품질메모 || "");
+      add("수면시간_분류", row.수면시간_h, row.수면시간_분류, row.수면시간_분류 ? "정상" : "계산 불가", "권장 범위는 8~10시간");
+      add("권장수면여부", row.수면시간_h, row.권장수면여부, row.권장수면여부 === "" ? "계산 불가" : "정상", "1이면 8~10시간 권장 범위");
+      add("수면컨디션", row.수면컨디션_원자료, row.수면컨디션_점수, choiceResultLabel(row.수면컨디션_원자료, row.수면컨디션_점수), "높을수록 좋음");
+      add("취침전스마트폰", row.취침전스마트폰_원자료, row.취침전스마트폰_점수, choiceResultLabel(row.취침전스마트폰_원자료, row.취침전스마트폰_점수), "높을수록 사용 많음");
+      add("신체활동", row.신체활동시간_원자료, row.신체활동_점수, choiceResultLabel(row.신체활동시간_원자료, row.신체활동_점수), "높을수록 활동 많음");
+      add("수면잠복기", row.수면잠복기_원자료, row.수면잠복기_점수, choiceResultLabel(row.수면잠복기_원자료, row.수면잠복기_점수), "높을수록 오래 걸림");
+      add("중도각성", row.중도각성_원자료, row.중도각성_점수, choiceResultLabel(row.중도각성_원자료, row.중도각성_점수), "높을수록 자주 깸");
+      add("낮졸음집중력", row.낮졸음집중력_원자료, row.낮졸음집중력_점수, choiceResultLabel(row.낮졸음집중력_원자료, row.낮졸음집중력_점수), "높을수록 낮 상태가 나쁨");
+      const caffeineSource = row.카페인집계구간 || row.카페인기준일;
+      add("일일카페인총량", caffeineSource, row.일일카페인총량_mg, Number(row.일일카페인총량_mg) > 500 ? "확인 필요" : "정상", "높을수록 섭취량 많음");
+      add("카페인섭취횟수", caffeineSource, row.카페인섭취횟수, "정상", "높을수록 섭취 잦음");
+      add("주요음료", caffeineSource, row.주요음료, "정상", "음료명별 섭취 횟수");
+      add("오전카페인여부", caffeineSource, row.오전카페인여부, "정상", "1이면 오전 섭취 있음");
+      add("오후카페인여부", caffeineSource, row.오후카페인여부, "정상", "1이면 오후 섭취 있음");
+      add("저녁카페인여부", caffeineSource, row.저녁카페인여부, "정상", "1이면 저녁 섭취 있음");
+      add("취침전카페인간격", caffeineSource, row.취침전카페인간격_h, row.취침전카페인간격_h === "" ? "계산 불가" : "정상", "작을수록 취침에 가까운 섭취");
+      return rows;
+    }
+
+    function preprocess(workbook) {
+      const mapping = {
+        students: findSheet(workbook, "students"),
+        caffeine: findSheet(workbook, "caffeine"),
+        sleep: findSheet(workbook, "sleep"),
+        info: findSheet(workbook, "info"),
+        caffeine_db: findSheet(workbook, "caffeine_db")
+      };
+      const missing = ["students", "caffeine", "sleep"].filter(k => !mapping[k]);
+      if (missing.length) throw new Error(`필수 시트를 찾을 수 없습니다: ${missing.join(", ")}`);
+
+      const options = {
+        sleepBasis: $("sleepBasis").value,
+        afternoonHour: Number($("afternoonHour").value),
+        eveningHour: Number($("eveningHour").value),
+        goodConditionScore: Number($("goodConditionScore").value),
+        caffeineLimit: Number($("caffeineLimit").value)
+      };
+
+      const rawStudents = sheetRows(workbook, mapping.students);
+      const rawCaffeine = sheetRows(workbook, mapping.caffeine);
+      const rawSleep = sheetRows(workbook, mapping.sleep);
+
+      const students = new Map();
+      rawStudents.forEach(row => {
+        const sid = idText(value(row, ["전체학번", "학번", "학생ID", "id"]));
+        if (!sid) return;
+        const grade = value(row, ["학년"]);
+        const klass = value(row, ["반"]);
+        const number = value(row, ["번호"]);
+        const anon = hashAnonId(sid);
+        students.set(sid, { 익명ID: anon, 학년: grade, 반: klass, 번호: number, 이름: value(row, ["이름", "성명", "학생 이름"]), _학번: sid });
+      });
+      const infoMap = buildInfoMap(workbook, mapping.info);
+      const originalRowsByStudent = new Map();
+      const pushOriginalRow = (sid, sheetName, row) => {
+        if (!sid) return;
+        if (!originalRowsByStudent.has(sid)) originalRowsByStudent.set(sid, []);
+        originalRowsByStudent.get(sid).push({ 원본시트: sheetName, ...row });
+      };
+
+      const caffeineDaily = new Map();
+      const caffeineByStudent = new Map();
+      const matchedCaffeineIds = new Set();
+      const caffeineErrors = [];
+      const sleepParseErrors = [];
+      const sourceSleepDates = [];
+      const sourceCaffeineDates = [];
+      rawCaffeine.forEach(row => {
+        const sid = idText(value(row, ["전체학번", "학번", "학생ID"]));
+        pushOriginalRow(sid, "caffeine", row);
+        const intakeRaw = value(row, ["섭취시간", "섭취 시간"]);
+        const intake = parseDateTimeFlexible(intakeRaw);
+        const analysisDate = dateKeyFlexible(intake);
+        const caffeineMg = num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"])) ?? 0;
+        if (!sid || !analysisDate || !intake) {
+          caffeineErrors.push({
+            원본시트: "caffeine",
+            원본행번호: row.__rowNum || "",
+            반: value(row, ["반"]) || "",
+            번호: value(row, ["번호"]) || "",
+            이름: value(row, ["성명", "이름"]) || "",
+            학번: sid,
+            분석일: "",
+            원자료날짜값: displayDateValue(intakeRaw, true),
+            오류유형: !intake ? "카페인 섭취시간 날짜 파싱 실패" : "카페인 기록 오류",
+            원자료값: intakeRaw,
+            확인메시지: !intake ? "섭취시간 값을 날짜로 해석하지 못했습니다." : "카페인 기록의 학생ID, 날짜, 시간 확인 필요",
+            권장처리: "원자료의 섭취시간 형식을 확인하세요. 예: 2026-05-01 15:30"
+          });
+          return;
+        }
+        sourceCaffeineDates.push(analysisDate);
+        if (!caffeineByStudent.has(sid)) caffeineByStudent.set(sid, []);
+        const caffeineRecord = { id: `${sid}||${row.__rowNum || caffeineByStudent.get(sid).length}`, row, intake, caffeineMg, drink: value(row, ["음료명", "음료"]) };
+        caffeineByStudent.get(sid).push(caffeineRecord);
+        const key = `${sid}||${analysisDate}`;
+        const current = caffeineDaily.get(key) || { records: [], total: 0 };
+        current.records.push(caffeineRecord);
+        // 학생에게 미섭취는 0mg으로 입력하도록 안내되므로, 0mg 기록은 섭취 집계에서 제외한다.
+        if (caffeineMg > 0) current.total += caffeineMg;
+        caffeineDaily.set(key, current);
+      });
+
+      const analysis = [];
+      rawSleep.forEach(row => {
+        const sid = idText(value(row, ["전체학번", "학번", "학생ID"]));
+        pushOriginalRow(sid, "sleep", row);
+        const recordDate = value(row, sleepDateColumns);
+        const parsedRecordDate = parseDateFlexible(recordDate);
+        if (!parsedRecordDate) {
+          sleepParseErrors.push({
+            원본시트: "sleep",
+            원본행번호: row.__rowNum || "",
+            반: value(row, ["반"]) || "",
+            번호: value(row, ["번호"]) || "",
+            이름: value(row, ["성명", "이름"]) || "",
+            학번: sid,
+            분석일: "",
+            원자료날짜값: displayDateValue(recordDate),
+            오류유형: "수면 날짜 파싱 실패",
+            원자료값: recordDate,
+            확인메시지: "수면 시트의 날짜 값을 날짜로 해석하지 못했습니다.",
+            권장처리: "원자료의 날짜 형식을 확인하세요. 예: 2026-05-01"
+          });
+          return;
+        }
+        sourceSleepDates.push(`${parsedRecordDate.getFullYear()}-${pad(parsedRecordDate.getMonth() + 1)}-${pad(parsedRecordDate.getDate())}`);
+        const bedtime = timeText(value(row, ["취침시간"]));
+        const wakeTime = timeText(value(row, ["기상시간"]));
+        const wakeDateRaw = value(row, ["기상날짜", "기상 날짜", "일어난 날짜", "기상일"]);
+        const sleepWindow = buildSleepWindow(parsedRecordDate, bedtime, wakeTime, options.sleepBasis, wakeDateRaw);
+        const analysisDate = sleepWindow.analysisDate;
+        const caffeineDate = sleepWindow.caffeineDate;
+        if (!sid || !analysisDate) return;
+        const student = students.get(sid) || {};
+        const sleepCaffeineWindowStart = sleepWindow.bed ? new Date(sleepWindow.bed.getTime() - 24 * 36e5) : null;
+        const records = (caffeineByStudent.get(sid) || []).filter(record => {
+          if (!sleepWindow.bed || !record.intake) return false;
+          return record.intake <= sleepWindow.bed && record.intake > sleepCaffeineWindowStart;
+        });
+        const caffeine = {
+          records,
+          total: records.reduce((sum, record) => sum + (record.caffeineMg > 0 ? Number(record.caffeineMg) : 0), 0)
+        };
+        const realRecords = records.filter(r => r.caffeineMg > 0);
+        const hasCaffeineEntry = records.length > 0;
+        realRecords.forEach(record => matchedCaffeineIds.add(record.id));
+        const latest = realRecords.slice().sort((a, b) => b.intake - a.intake)[0];
+        const effectiveCaffeineDate = latest ? dateKeyFlexible(latest.intake) : caffeineDate;
+        const drinkSummary = summarizeDrinkCounts(realRecords);
+        const caffeineWithin = hours => realRecords.length > 0
+          ? (gap !== "" && Number.isFinite(Number(gap)) && Number(gap) <= hours ? 1 : 0)
+          : "";
+        const sleepHours = num(value(row, ["수면시간(h)", "수면시간", "수면 시간"]));
+        const conditionRaw = value(row, ["수면 후 컨디션", "수면 후 컨디", "기상 후 컨디션", "기상 후컨디션", "수면컨디션", "수면 컨디션", "컨디션", "수면만족도", "수면 만족도", "수면만족", "수면 만족", "수면의 질", "수면 질", "오늘 수면 만족도", "오늘 아침 수면 만족도", "기상 후 수면 만족도", "기상 후 상태", "아침 컨디션", "오늘 컨디션", "오늘 아침 상태", "잠에서 깬 후 상태", "기상 후 몸 상태"]);
+        const activityRaw = value(row, ["신체활동시간", "신체 활동 시간", "어제 신체활동 시간", "어제신체활동시간", "신체활동", "취침전활동", "취침 전 활동", "취침 전 신체활동", "잠들기 전 활동", "운동시간", "어제 운동시간", "운동 시간"]);
+        const phoneRaw = value(row, ["취침전스마트폰", "취침전스마트", "취침 전 스마트폰", "취침 전 스마트폰 사용", "자기 전 스마트폰", "잠들기 전 스마트폰", "취침 전 휴대폰", "자기 전 휴대폰", "잠들기 전 휴대폰"]);
+        const latencyRaw = value(row, ["수면잠복기", "수면 잠복기", "잠들기소요시간", "잠들기 소요 시간", "잠드는 데 걸린 시간", "잠들기까지 걸린 시간", "잠들기까지 걸린시간", "잠들기까지걸린시간", "잠들기까지 시간", "잠들기까지"]);
+        const awakeningRaw = value(row, ["중도각성횟수", "중도각성횟", "중도 각성 횟수", "중도각성", "수면중각성", "수면 중 각성", "수면중 각성", "잠에서 깬 횟수", "자다가 깬 횟수", "자다가깬횟수"]);
+        const drowsyRaw = value(row, ["어제낮졸음·집중력", "어제낮졸음ㆍ집중력", "어제 낮 졸음·집중력", "어제 낮 졸음 집중력", "어제낮졸음", "낮졸림", "낮 졸림", "낮졸림집중력", "낮 졸림 집중력", "졸림집중도", "졸림 집중도", "어제의 졸림/집중력", "낮졸음집중력", "낮 졸음·집중력"]);
+        const conditionResult = scoreConditionChoice(conditionRaw);
+        const activityResult = scoreActivityChoice(activityRaw);
+        const phoneResult = scorePhoneChoice(phoneRaw);
+        const latencyResult = scoreSleepLatencyChoice(latencyRaw);
+        const awakeningResult = scoreAwakeningChoice(awakeningRaw);
+        const drowsyResult = scoreDrowsyChoice(drowsyRaw);
+        const conditionScore = conditionResult.score;
+        const activityScore = activityResult.score;
+        const phoneScore = phoneResult.score;
+        const latencyScore = latencyResult.score;
+        const awakeningScore = awakeningResult.score;
+        const drowsyScore = drowsyResult.score;
+        let gap = "";
+        if (latest && sleepWindow.bed) {
+          gap = round((sleepWindow.bed - latest.intake) / 36e5, 2);
+        }
+        const morningCaffeineFlag = hasCaffeineEntry ? (realRecords.some(record => record.intake.getHours() < 12) ? 1 : 0) : "";
+        const afternoonCaffeineFlag = hasCaffeineEntry ? (realRecords.some(record => record.intake.getHours() >= options.afternoonHour) ? 1 : 0) : "";
+        const eveningCaffeineFlag = hasCaffeineEntry ? (realRecords.some(record => record.intake.getHours() >= options.eveningHour) ? 1 : 0) : "";
+        const caffeineTimeBandCount = hasCaffeineEntry
+          ? morningCaffeineFlag + afternoonCaffeineFlag + eveningCaffeineFlag
+          : "";
+        const quality = [];
+        const choiceIssues = [
+          ["수면컨디션", conditionRaw, conditionResult],
+          ["취침전스마트폰", phoneRaw, phoneResult],
+          ["신체활동", activityRaw, activityResult],
+          ["수면잠복기", latencyRaw, latencyResult],
+          ["중도각성", awakeningRaw, awakeningResult],
+          ["낮졸음집중력", drowsyRaw, drowsyResult],
+        ];
+        choiceIssues.forEach(([label, raw, result]) => {
+          if (result.error) quality.push(result.error === "응답 누락" ? `${label} 응답 누락` : `${label} 선택지 외 값(${raw})`);
+        });
+        const personalLimit = infoMap.get(sid)?.카페인개인한도_mg || options.caffeineLimit || 150;
+        if (sleepHours === null) quality.push("수면시간 결측");
+        else if (sleepHours < SLEEP_MIN_H || sleepHours > SLEEP_MAX_H) quality.push("수면시간 이상치");
+        if ((caffeine?.total || 0) > 500) quality.push("카페인 총량 이상치");
+        const sleepCategory = classifySleepHours(sleepHours);
+        const recommendedSleepFlag = sleepHours !== null ? (sleepHours >= 8 && sleepHours <= 10 ? 1 : 0) : "";
+        const sleepTimeOk = sleepHours !== null && sleepCategory !== "수면 부족" && sleepCategory !== "수면 과다";
+        const conditionOk = conditionScore !== "" && conditionScore >= options.goodConditionScore;
+        const allScoresPresent = sleepHours !== null
+          && conditionScore !== ""
+          && latencyScore !== ""
+          && awakeningScore !== ""
+          && drowsyScore !== "";
+        const sleepScore = sleepTimeOk ? 1 : 0;
+        const condScore = conditionOk ? 1 : 0;
+        const latScore = latencyScore !== "" && latencyScore <= 2 ? 1 : 0;
+        const awakScore = awakeningScore !== "" && awakeningScore <= 2 ? 1 : 0;
+        const drowScore = drowsyScore !== "" && drowsyScore <= 2 ? 1 : 0;
+        const totalSleepQualityScore = sleepScore + condScore + latScore + awakScore + drowScore;
+        const goodSleepFlag = !allScoresPresent
+          ? ""
+          : (!sleepTimeOk || !conditionOk)
+            ? 0
+            : (totalSleepQualityScore >= SLEEP_GOOD_THRESHOLD ? 1 : 0);
+
+        analysis.push({
+          원본시트: "sleep",
+          원본행번호: row.__rowNum || "",
+          원자료날짜값: displayDateValue(recordDate),
+          분석일: analysisDate,
+          카페인기준일: effectiveCaffeineDate,
+          카페인집계구간: sleepWindow.bed ? `${dateKeyFlexible(sleepCaffeineWindowStart)} ${timeText(sleepCaffeineWindowStart)} ~ ${dateKeyFlexible(sleepWindow.bed)} ${timeText(sleepWindow.bed)}` : "",
+          학년: value(row, ["학년"]) || student.학년 || "",
+          반: value(row, ["반"]) || student.반 || "",
+          번호: value(row, ["번호"]) || student.번호 || "",
+          이름: value(row, ["성명", "이름"]) || student.이름 || "",
+          익명ID: student.익명ID || hashAnonId(sid),
+          _학번: student._학번 || sid,
+          수면시간_h: sleepHours ?? "",
+          수면시간_구간: sleepBand(sleepHours),
+          수면시간_분류: sleepCategory,
+          권장수면여부: recommendedSleepFlag,
+          취침시간: bedtime,
+          기상시간: wakeTime,
+          수면컨디션_원자료: conditionRaw,
+          수면컨디션_점수: conditionScore,
+          수면만족_등급: conditionScore === "" ? "" : conditionScore <= 2 ? "낮음" : conditionScore === 3 ? "보통" : "높음",
+          취침전스마트폰: phoneRaw,
+          취침전스마트폰_원자료: phoneRaw,
+          취침전스마트폰_점수: phoneScore,
+          신체활동시간_분: activityRaw,
+          신체활동시간_원자료: activityRaw,
+          신체활동_점수: activityScore,
+          수면잠복기_분: latencyRaw,
+          수면잠복기_원자료: latencyRaw,
+          수면잠복기_점수: latencyScore,
+          중도각성_원자료: awakeningRaw,
+          중도각성_점수: awakeningScore,
+          낮졸음집중력_원자료: drowsyRaw,
+          낮졸음집중력_점수: drowsyScore,
+          일일카페인총량_mg: hasCaffeineEntry ? round(caffeine?.total || 0, 1) : "",
+          카페인섭취횟수: hasCaffeineEntry ? realRecords.length : "",
+          주요음료: drinkSummary,
+          최후섭취시각: latest ? timeText(latest.intake) : "",
+          오전카페인여부: morningCaffeineFlag,
+          오후카페인여부: afternoonCaffeineFlag,
+          저녁카페인여부: eveningCaffeineFlag,
+          카페인섭취시간대수: caffeineTimeBandCount,
+          취침전카페인간격_h: gap,
+          취침4시간이내카페인여부: caffeineWithin(4),
+          취침6시간이내카페인여부: caffeineWithin(6),
+          취침8시간이내카페인여부: caffeineWithin(8),
+          취침12시간이내카페인여부: caffeineWithin(12),
+          카페인개인한도_mg: personalLimit,
+          카페인목표초과여부: hasCaffeineEntry ? ((caffeine?.total || 0) > 0 && (caffeine?.total || 0) > personalLimit ? 1 : 0) : "",
+          수면양호여부: goodSleepFlag,
+          숙면여부: goodSleepFlag,
+          데이터품질상태: quality.length ? "확인필요" : "정상",
+          데이터품질메모: quality.join("; ")
+        });
+      });
+
+      analysis.sort((a, b) => {
+        const da = parseDateFlexible(a.분석일);
+        const db = parseDateFlexible(b.분석일);
+        return (da - db) || String(a.반).localeCompare(String(b.반)) || Number(a.번호 || 0) - Number(b.번호 || 0);
+      });
+
+      const caffeineConnectionMap = new Map();
+      caffeineByStudent.forEach((records, sid) => {
+        records.forEach(record => {
+          if (!(record.caffeineMg > 0) || !matchedCaffeineIds.has(record.id)) return;
+          const caffeineDate = dateKeyFlexible(record.intake);
+          if (caffeineDate) caffeineConnectionMap.set(`${sid}||${caffeineDate}`, true);
+        });
+      });
+
+      const orphanCaffeineErrors = [];
+      caffeineByStudent.forEach((records, sid) => {
+        const student = students.get(sid) || {};
+        records.forEach(record => {
+          if (!(record.caffeineMg > 0) || matchedCaffeineIds.has(record.id)) return;
+          const row = record.row || {};
+          orphanCaffeineErrors.push({
+            원본시트: "caffeine",
+            원본행번호: row.__rowNum || "",
+            반: value(row, ["반"]) || student.반 || "",
+            번호: value(row, ["번호"]) || student.번호 || "",
+            이름: value(row, ["성명", "이름"]) || student.이름 || "",
+            학번: sid,
+            분석일: "",
+            원자료날짜값: displayDateValue(record.intake, true),
+            오류유형: "카페인 기록 연결 실패",
+            원자료값: `${value(row, ["음료명", "음료"]) || "음료명 없음"} / ${record.caffeineMg}mg / ${displayDateValue(record.intake, true)}`,
+            확인메시지: "이 카페인 섭취를 연결할 수 있는 이후 수면 기록이 없습니다.",
+            권장처리: "해당 날짜 다음 아침의 수면 기록이 누락되었는지 확인하세요."
+          });
+        });
+      });
+
+      const missingSleepErrors = [];
+      const analysisByStudent = new Map();
+      analysis.forEach(row => {
+        const sid = row._학번 || row.익명ID;
+        if (!sid) return;
+        if (!analysisByStudent.has(sid)) analysisByStudent.set(sid, []);
+        analysisByStudent.get(sid).push(row);
+      });
+      analysisByStudent.forEach(rows => {
+        const sorted = rows
+          .map(row => ({ row, date: parseDateFlexible(row.분석일) }))
+          .filter(item => item.date)
+          .sort((a, b) => a.date - b.date);
+        for (let i = 1; i < sorted.length; i++) {
+          const prev = sorted[i - 1];
+          const curr = sorted[i];
+          for (let missing = addDays(prev.date, 1); missing < curr.date; missing = addDays(missing, 1)) {
+            const missingDate = dateKeyFlexible(missing);
+            missingSleepErrors.push({
+              원본시트: "sleep",
+              원본행번호: "",
+              반: curr.row.반 || prev.row.반 || "",
+              번호: curr.row.번호 || prev.row.번호 || "",
+              이름: curr.row.이름 || prev.row.이름 || "",
+              학번: curr.row._학번 || prev.row._학번 || "",
+              분석일: missingDate,
+              원자료날짜값: missingDate,
+              오류유형: "수면 기록 누락",
+              원자료값: "수면 기록 없음",
+              확인메시지: "앞뒤 수면 기록 사이에 빠진 날짜가 있습니다.",
+              권장처리: "해당 날짜의 수면 기록을 입력했는지 확인하세요."
+            });
+          }
+        }
+      });
+
+      const missingCaffeineErrors = [];
+      const seenMissingCaffeine = new Set();
+      analysis.forEach(row => {
+        const sid = row._학번 || row.익명ID;
+        const analysisDate = row.분석일;
+        if (!sid || !analysisDate) return;
+        const key = `${sid}||${analysisDate}`;
+        if (seenMissingCaffeine.has(key)) return;
+        const dayCaffeine = caffeineDaily.get(key);
+        if (dayCaffeine?.records?.length) return;
+        seenMissingCaffeine.add(key);
+        missingCaffeineErrors.push({
+          원본시트: "caffeine",
+          원본행번호: "",
+          반: row.반 || "",
+          번호: row.번호 || "",
+          이름: row.이름 || "",
+          학번: row._학번 || "",
+          분석일: analysisDate,
+          원자료날짜값: analysisDate,
+          오류유형: "카페인 기록 누락",
+          원자료값: "카페인 기록 없음",
+          확인메시지: `${analysisDate} 날짜의 카페인 기록이 없습니다. 섭취하지 않은 날도 '카페인 섭취 안 함' 또는 0mg으로 기록해야 합니다.`,
+          권장처리: "해당 날짜 caffeine 시트에 0mg 미섭취 기록을 추가했는지 확인하세요."
+        });
+      });
+
+      const classSummary = groupBy(analysis, ["분석일", "반"]).map(({ rows }) => ({
+        분석일: rows[0].분석일,
+        반: rows[0].반,
+        기록학생수: new Set(rows.map(r => r.익명ID)).size,
+        평균수면시간_h: round(avg(rows, "수면시간_h")),
+        평균수면컨디션: round(avg(rows, "수면컨디션_점수")),
+        평균카페인총량_mg: round(avg(rows, "일일카페인총량_mg")),
+        카페인섭취학생비율: round(rows.filter(r => r.카페인섭취횟수 > 0).length / rows.length, 3),
+        오전카페인비율: round(avg(rows, "오전카페인여부"), 3),
+        오후카페인비율: round(avg(rows, "오후카페인여부"), 3),
+        저녁카페인비율: round(avg(rows, "저녁카페인여부"), 3)
+      }));
+
+      const personalSummary = groupBy(analysis, ["익명ID", "학년", "반"]).map(({ rows }) => {
+        const recordDays = new Set(rows.map(r => r.분석일)).size;
+        const goodDays = rows.reduce((sum, r) => sum + Number(r.수면양호여부 || 0), 0);
+        return {
+          익명ID: rows[0].익명ID,
+          학년: rows[0].학년,
+          반: rows[0].반,
+          기록일수: recordDays,
+          평균수면시간_h: round(avg(rows, "수면시간_h")),
+          평균수면컨디션: round(avg(rows, "수면컨디션_점수")),
+          평균카페인총량_mg: round(avg(rows, "일일카페인총량_mg")),
+          카페인섭취일수: rows.filter(r => r.카페인섭취횟수 > 0).length,
+          오전카페인일수: rows.reduce((sum, r) => sum + Number(r.오전카페인여부 || 0), 0),
+          저녁카페인일수: rows.reduce((sum, r) => sum + Number(r.저녁카페인여부 || 0), 0),
+          평균취침전카페인간격_h: round(avg(rows, "취침전카페인간격_h")),
+          수면양호일수: goodDays,
+          수면양호비율: round(goodDays / recordDays, 3)
+        };
+      });
+
+      const standards = [
+        { 기준명: "sleep_date_basis", 값: options.sleepBasis, 설명: "수면 분석일은 취침 시각 기준. 단 00:00~03:59 새벽 취침은 전날 밤 수면으로 보아 분석일을 전날로 보정. 기상날짜 열이 있으면 실제 기상 시각 계산에 사용" },
+        { 기준명: "caffeine_window_for_sleep", 값: "실제 취침시각 이전 24시간", 설명: "수면 분석일은 '날짜'(취침일) 열을 기준으로 유지하되, 카페인은 실제 취침시각보다 앞선 기록만 연결" },
+        { 기준명: "afternoon_hour", 값: options.afternoonHour, 설명: "오후 카페인 여부 기준 시각" },
+        { 기준명: "evening_hour", 값: options.eveningHour, 설명: "저녁 카페인 여부 기준 시각" },
+        { 기준명: "sleep_category", 값: "7h미만=수면 부족 / 7~8h=적당한 수면 / 8~10h=권장 수면 / 10~11h=적당한 수면 / 11h이상=수면 과다", 설명: "수면은 너무 적어도, 너무 많아도 주의가 필요하므로 5단계로 분류" },
+        { 기준명: "recommended_sleep", 값: "8h 이상 10h 이하", 설명: "권장수면여부=1 기준" },
+        { 기준명: "good_condition_score", 값: options.goodConditionScore, 설명: "수면양호여부 계산에 사용하는 수면컨디션 기준 점수" },
+        { 기준명: "caffeine_limit_mg", 값: `개인별(info 시트 목표카페인 우선, 없으면 체중×2.5, 최종 기본값 ${options.caffeineLimit || 150}mg)`, 설명: "식약처 청소년 권고량 기준. 체중 미입력 시 150mg(60kg 기준)" },
+        { 기준명: "카페인개인한도_mg", 값: "info 시트 목표카페인섭취량 또는 몸무게×2.5", 설명: "학생별 카페인 기준. 일계 데이터에 컬럼으로 포함되어 초과 여부 계산에 사용" },
+        { 기준명: "카페인섭취횟수", 값: "0mg(미섭취 기록) 제외 후 집계", 설명: "학생이 입력한 0mg은 미섭취로 분류하여 섭취횟수, 최후섭취시각, 주요음료, 오전/오후/저녁카페인 여부에서 제외" },
+        { 기준명: "카페인_0mg_처리", 값: "미섭취 기록으로 분석에 포함", 설명: "0mg은 카페인을 마시지 않았다는 명시적 기록입니다. AI 규칙 나무 분석에는 포함하고, 실제 섭취 횟수와 음료 집계에서는 제외합니다." },
+        { 기준명: "카페인_빈값_처리", 값: "미섭취로 단정하지 않음", 설명: "카페인 관련 값이 빈칸이면 마시지 않은 것이 아니라 기록 누락 가능성으로 보아 확인이 필요합니다." },
+        { 기준명: "취침전카페인간격_h", 값: "(실제 취침시각 - 집계구간 내 최후카페인섭취시간) / 60", 설명: "수면 이후에 섭취한 카페인은 해당 수면에 연결하지 않음" },
+        { 기준명: "수면잠복기_점수", 값: "1=15분 이내/2=15~30분/3=30~60분/4=60분 이상", 설명: "선택지 기반 1~4점. 점수가 높을수록 잠들기까지 오래 걸림" },
+        { 기준명: "수면컨디션_점수", 값: "1=😫/2=😴/3=😐/4=🙂/5=😊", 설명: "선택지 기반 1~5점. 높을수록 기상 후 컨디션이 좋음" },
+        { 기준명: "신체활동_점수", 값: "1=안함/2=30분미만/3=30~60분/4=60분이상", 설명: "선택지 기반 1~4점. 값이 높을수록 활동 시간이 김" },
+        { 기준명: "취침전스마트폰_점수", 값: "1=안 함/2=30분 미만/3=30~60분/4=60분 이상", 설명: "선택지 기반 1~4점. 높을수록 취침 전 스마트폰 사용 시간이 김" },
+        { 기준명: "중도각성_점수", 값: "1=없음/2=1번/3=2번/4=3번 이상", 설명: "선택지 기반 1~4점. 높을수록 수면 중 깬 횟수가 많음" },
+        { 기준명: "낮졸음집중력_점수", 값: "1=없음/2=조금 있었음/3=꽤 힘들었음/4=매우 심했음", 설명: "선택지 기반 1~4점. 값이 높을수록 낮 졸음·집중력 문제가 큼" },
+        { 기준명: "수면이상치기준", 값: `${SLEEP_MIN_H}h 미만 또는 ${SLEEP_MAX_H}h 초과`, 설명: "오류확인 시트에 확인 필요로 표시" }
+      ];
+      const analysisDates = analysis.map(row => row.분석일).filter(Boolean);
+      const dateRangeSummary = [
+        { 항목: "원본 수면 날짜 범위", 값: dateRangeText(sourceSleepDates) },
+        { 항목: "원본 카페인 날짜 범위", 값: dateRangeText(sourceCaffeineDates) },
+        { 항목: "분석데이터 날짜 범위", 값: dateRangeText(analysisDates) },
+        { 항목: "날짜 파싱 실패 행 수", 값: sleepParseErrors.length + caffeineErrors.filter(e => String(e.오류유형).includes("날짜 파싱 실패")).length },
+        { 항목: "수면 기록 누락 수", 값: missingSleepErrors.length },
+        { 항목: "카페인 기록 누락 수", 값: missingCaffeineErrors.length },
+        { 항목: "카페인 기록 연결 실패 수", 값: orphanCaffeineErrors.length },
+      ];
+      dateRangeSummary.forEach(item => standards.push({ 기준명: item.항목, 값: item.값, 설명: "날짜 범위 진단" }));
+      const variableDescriptions = makeVariableDescriptions(options);
+      const preprocessStandards = makePreprocessStandards(options);
+      const scatterData = analysis.map(row => pickColumns(row, visualizationColumns));
+      const treeData = analysis
+        .filter(row => row.수면양호여부 !== "")
+        .map(row => pickColumns(row, treeColumns));
+      const treeDataClean = treeData.filter(row => treeColumns.every(col => row[col] !== "" && row[col] !== null && row[col] !== undefined));
+      standards.push({ 기준명: "AI_CSV_제외행수", 값: treeData.length - treeDataClean.length, 설명: "입력 변수 또는 목표값 빈칸으로 의사결정트리 CSV에서 제외된 행 수" });
+      const preprocessComparisonTeacher = analysis.flatMap(row => makeComparisonRows(row, true));
+      const preprocessComparisonStudent = analysis.flatMap(row => makeComparisonRows(row, false));
+      const errors = analysis.flatMap(row => {
+        const out = [];
+        if (row.수면시간_h !== "" && Number(row.수면시간_h) < SLEEP_MIN_H) out.push({ 오류유형: "수면시간 부족 이상치", 원자료값: row.수면시간_h, 확인메시지: "수면시간이 2시간 미만입니다.", 권장처리: "원자료 확인" });
+        if (row.수면시간_h !== "" && Number(row.수면시간_h) > SLEEP_MAX_H) out.push({ 오류유형: "수면시간 과다 이상치", 원자료값: row.수면시간_h, 확인메시지: "수면시간이 12시간을 초과합니다.", 권장처리: "원자료 확인" });
+        if (Number(row.일일카페인총량_mg) > 500) out.push({ 오류유형: "카페인량 이상치", 원자료값: row.일일카페인총량_mg, 확인메시지: "일일 카페인 총량이 500mg을 초과합니다.", 권장처리: "음료/함량 확인" });
+        if (!row.취침시간 || !row.기상시간) out.push({ 오류유형: "시간 정보 누락", 원자료값: `${row.취침시간 || ""}/${row.기상시간 || ""}`, 확인메시지: "취침시간 또는 기상시간이 없습니다.", 권장처리: "분석 제외 또는 원자료 보완" });
+        if (row.수면컨디션_점수 === "") out.push({ 오류유형: "컨디션 점수 누락", 원자료값: row.수면컨디션_원자료, 확인메시지: "컨디션 응답을 점수로 변환하지 못했습니다.", 권장처리: "선택지 매핑 확인" });
+        if (!row.이름 || !row._학번) out.push({ 오류유형: "학생정보 없음", 원자료값: row.익명ID, 확인메시지: "학생정보 매칭이 불완전합니다.", 권장처리: "students 시트 확인" });
+        if (row.카페인섭취횟수 === 0 && row.일일카페인총량_mg > 0) out.push({ 오류유형: "날짜 매칭 실패", 원자료값: row.카페인기준일, 확인메시지: "카페인 횟수와 총량이 맞지 않습니다.", 권장처리: "날짜 기준 확인" });
+        [
+          ["수면컨디션", row.수면컨디션_원자료, row.수면컨디션_점수],
+          ["취침전스마트폰", row.취침전스마트폰_원자료, row.취침전스마트폰_점수],
+          ["신체활동", row.신체활동시간_원자료, row.신체활동_점수],
+          ["수면잠복기", row.수면잠복기_원자료, row.수면잠복기_점수],
+          ["중도각성", row.중도각성_원자료, row.중도각성_점수],
+          ["낮졸음집중력", row.낮졸음집중력_원자료, row.낮졸음집중력_점수],
+        ].forEach(([label, raw, score]) => {
+          if (score !== "") return;
+          const missing = String(raw ?? "").trim() === "";
+          out.push({
+            오류유형: `${label} ${missing ? "응답 누락" : "선택지 외 값"}`,
+            원자료값: missing ? "빈값" : raw,
+            확인메시지: missing ? `${label} 응답이 없습니다.` : "정해진 선택지에 없는 값입니다.",
+            권장처리: missing ? "원자료 확인 또는 분석 제외" : "원자료를 정해진 선택지 값으로 수정"
+          });
+        });
+        return out.map(e => ({
+          원본시트: row.원본시트 || "sleep",
+          원본행번호: row.원본행번호 || "",
+          반: row.반,
+          번호: row.번호,
+          이름: row.이름,
+          학번: row._학번,
+          분석일: row.분석일,
+          원자료날짜값: row.원자료날짜값 || "",
+          ...e
+        }));
+      }).concat(caffeineErrors, sleepParseErrors, orphanCaffeineErrors, missingSleepErrors, missingCaffeineErrors);
+      // 교사용: _학번 내부필드 제거 (학번은 students 시트에 있음)
+      const teacherAnalysis = analysis.map(({ _학번, ...rest }) => rest);
+      // 학생용(익명): 이름·번호·_학번 제거
+      const studentAnalysis = analysis.map(({ 이름, 번호, _학번, ...rest }) => rest);
+
+      const rawStudentsForExport = formatOriginalRowsForExport(rawStudents, [
+        { candidates: ["타임스탬프", "timestamp"], type: "datetime" },
+      ]);
+      const rawCaffeineForExport = formatOriginalRowsForExport(rawCaffeine, [
+        { candidates: ["타임스탬프", "timestamp"], type: "datetime" },
+        { candidates: ["섭취시간", "섭취 시간"], type: "datetime" },
+      ]);
+      const rawSleepForExport = formatSleepRowsForExport(rawSleep);
+
+      return {
+        mapping, analysis, teacherAnalysis, studentAnalysis, classSummary, personalSummary, errors, standards,
+        variableDescriptions, preprocessStandards, scatterData, treeData: treeDataClean, dateRangeSummary,
+        preprocessComparisonTeacher, preprocessComparisonStudent, originalRowsByStudent,
+        rawStudents: rawStudentsForExport, rawCaffeine: rawCaffeineForExport, rawSleep: rawSleepForExport,
+        caffeineConnectionMap, options
+      };
+    }
+
+    function renderMetrics() {
+      const rows = state?.analysis || [];
+      const errors = state?.errors || [];
+      const studentIds = new Set(rows.map(r => r.익명ID).filter(Boolean));
+      const analyzableIds = new Set(rows.filter(r => r.수면양호여부 !== "").map(r => r.익명ID).filter(Boolean));
+      const dateErrors = errors.filter(r => String(r.오류유형 || "").includes("날짜 파싱")).length;
+      const conditionErrors = errors.filter(r => String(r.오류유형 || "").includes("수면컨디션")).length;
+      const caffeineMissing = errors.filter(r => String(r.오류유형 || "").includes("카페인") && String(r.오류유형 || "").includes("누락")).length;
+      const status = errors.length ? "⚠️ 수정 권장" : "✅ 배부 가능";
+      const items = [
+        ["일계 기록", rows.length],
+        ["학생 수", studentIds.size],
+        ["분석 가능 학생", analyzableIds.size],
+        ["기록 부족 학생", Math.max(0, studentIds.size - analyzableIds.size)],
+        ["날짜 오류", dateErrors],
+        ["컨디션 오류", conditionErrors],
+        ["카페인 누락", caffeineMissing],
+        ["확인 필요", errors.length]
+      ];
+      $("metrics").innerHTML = items.map(([label, value]) => '<div class="metric"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></div>').join("");
+      $("message").className = errors.length ? "notice warn" : "notice";
+      $("message").textContent = status + " | 총 학생 수: " + studentIds.size + "명, 분석 가능 학생 수: " + analyzableIds.size + "명, 기록 부족 학생 수: " + Math.max(0, studentIds.size - analyzableIds.size) + "명, 날짜 오류: " + dateErrors + "건, 수면 컨디션 이모지 오류: " + conditionErrors + "건, 카페인 함량 누락: " + caffeineMissing + "건" + (errors.length ? " - 이 상태로 배부하면 일부 학생 그래프가 비어 보이거나 평균 계산에서 제외될 수 있습니다." : "");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[ch]));
+    }
+
+    function renderTabs() {
+      const tabs = [
+        ["teacherAnalysis", "분석데이터"],
+        ["errors", "오류확인"],
+        ["preprocessComparisonTeacher", "전처리비교"],
+        ["preprocessStandards", "전처리기준"],
+        ["scatterData", "산점도용"],
+        ["treeData", "의사결정트리용"],
+        ["classSummary", "반별요약"],
+        ["personalSummary", "학생별요약"]
+      ];
+      $("tabs").innerHTML = tabs.map(([key, label]) => `<button class="tab ${activeTab === key ? "active" : ""}" data-tab="${key}">${label}</button>`).join("");
+      document.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          activeTab = btn.dataset.tab;
+          renderTabs();
+          renderTable();
+        });
+      });
+    }
+
+    function renderTable() {
+      const rows = (state?.[activeTab] || []).slice(0, 300);
+      if (!rows.length) {
+        $("table").innerHTML = `<div class="empty">표시할 데이터가 없습니다.</div>`;
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      $("table").innerHTML = `<table><thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }
+
+    // ─── 반·학생 선택 드롭다운 채우기 ────────────────────────────────
+    function populateFilters() {
+      const rows = state?.analysis || [];
+      const classes = [...new Set(rows.map(r => String(r.반)))].filter(Boolean).sort();
+
+      ["classSelect", "classForStudent", "classSelectTask", "classSelectCompare", "classForCheck", "classSelectTree", "classSelectReview"].forEach(id => {
+        const sel = $(id);
+        if (!sel) return;
+        const prev = sel.value;
+        const label = id === "classSelectTree" ? "전체" : ((id === "classForStudent" || id === "classForCheck") ? "전체 학생" : "반 선택");
+        sel.innerHTML = '<option value="">' + label + ' (' + classes.length + '개 반)</option>';
+        classes.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c + "반";
+          sel.appendChild(opt);
+        });
+        sel.value = classes.includes(prev) ? prev : "";
+      });
+
+      populateStudentSelect();
+      populateDataCheckStudentSelect();
+      updateDataCheckButtons();
+      populateCompareStudentSelect();
+      updateBeforeAfterButtons();
+      if ($("downloadReview")) $("downloadReview").disabled = false;
+      if ($("downloadTask")) $("downloadTask").disabled = false;
+      $("dlSection").style.display = "block";
+    }
+
+    function populateStudentSelect() {
+      const sel = $("studentSelect");
+      const klass = $("classForStudent").value;
+      const rows = state?.analysis || [];
+      const filtered = klass ? rows.filter(r => String(r.반) === klass) : rows;
+
+      // 학생 고유 목록: 익명ID + 이름 + 학번
+      const seen = new Map();
+      filtered.forEach(r => {
+        if (!seen.has(r.익명ID)) {
+          seen.set(r.익명ID, { 익명ID: r.익명ID, 반: r.반, 번호: r.번호, 이름: r.이름, 학번: r._학번 || "" });
+        }
+      });
+      const students = [...seen.values()].sort((a, b) =>
+        String(a.반).localeCompare(String(b.반)) || Number(a.번호 || 0) - Number(b.번호 || 0)
+      );
+
+      sel.innerHTML = `<option value="">전체 학생 (${students.length}명)</option>`;
+      students.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.익명ID;
+        const label = [s.반 ? `${s.반}반` : "", s.번호 ? `${s.번호}번` : "", s.이름 || s.익명ID].filter(Boolean).join(" ");
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    }
+
+    function studentOptionsForClass(klass) {
+      const rows = state?.analysis || [];
+      const filtered = klass ? rows.filter(r => String(r.반) === klass) : rows;
+      const seen = new Map();
+      filtered.forEach(r => {
+        if (!seen.has(r.익명ID)) {
+          seen.set(r.익명ID, { 익명ID: r.익명ID, 반: r.반, 번호: r.번호, 이름: r.이름, 학번: r._학번 || "" });
+        }
+      });
+      return [...seen.values()].sort((a, b) =>
+        String(a.반).localeCompare(String(b.반)) || Number(a.번호 || 0) - Number(b.번호 || 0)
+      );
+    }
+
+    function populateDataCheckStudentSelect() {
+      const sel = $("studentCheckSelect");
+      if (!sel) return;
+      const klass = $("classForCheck").value;
+      const students = studentOptionsForClass(klass);
+      sel.innerHTML = `<option value="">학생 선택 (${students.length}명)</option>`;
+      students.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.익명ID;
+        opt.textContent = [s.반 ? `${s.반}반` : "", s.번호 ? `${s.번호}번` : "", s.이름 || s.익명ID].filter(Boolean).join(" ");
+        sel.appendChild(opt);
+      });
+      updateDataCheckButtons();
+    }
+
+    function compareStudentOptions() {
+      const klass = $("classSelectCompare")?.value || "";
+      const keyword = ($("compareNameFilter")?.value || "").trim().toLowerCase();
+      return studentOptionsForClass(klass).filter(s => {
+        if (!keyword) return true;
+        return [s.이름, s.학번, s.익명ID, s.번호].some(value => String(value || "").toLowerCase().includes(keyword));
+      });
+    }
+
+    function populateCompareStudentSelect() {
+      const sel = $("studentCompareSelect");
+      if (!sel) return;
+      const students = compareStudentOptions();
+      sel.innerHTML = `<option value="">학생 선택 (${students.length}명)</option>`;
+      students.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.익명ID;
+        opt.textContent = [s.반 ? `${s.반}반` : "", s.번호 ? `${s.번호}번` : "", s.이름 || s.익명ID].filter(Boolean).join(" ");
+        sel.appendChild(opt);
+      });
+      updateBeforeAfterButtons();
+    }
+
+    function updateBeforeAfterButtons() {
+      const hasPeriod = !!parseDateFlexible($("beforeExperimentStart")?.value)
+        && !!parseDateFlexible($("beforeExperimentEnd")?.value)
+        && !!parseDateFlexible($("experimentStart")?.value)
+        && !!parseDateFlexible($("experimentEnd")?.value);
+      const hasRows = compareStudentOptions().length > 0;
+      if ($("downloadBeforeAfter")) $("downloadBeforeAfter").disabled = !state || !hasPeriod || !hasRows;
+      if ($("downloadBeforeAfterZip")) $("downloadBeforeAfterZip").disabled = !state || !hasPeriod || !hasRows;
+      if ($("downloadBeforeAfterOne")) $("downloadBeforeAfterOne").disabled = !state || !hasPeriod || !$("studentCompareSelect")?.value;
+    }
+
+    function updateDataCheckButtons() {
+      const one = $("downloadDataCheck");
+      const zip = $("downloadDataCheckZip");
+      const hasPeriod = !!parseDateFlexible($("dataCheckStart")?.value) && !!parseDateFlexible($("dataCheckEnd")?.value);
+      if (one) one.disabled = !state || !hasPeriod || !$("studentCheckSelect").value;
+      if (zip) zip.disabled = !state || !hasPeriod;
+    }
+
+    function getDataCheckPeriod() {
+      const start = parseDateFlexible($("dataCheckStart").value);
+      const end = parseDateFlexible($("dataCheckEnd").value);
+      if (!start || !end) {
+        alert("점검 시작일과 종료일을 입력해주세요.");
+        return null;
+      }
+      if (end < start) {
+        alert("점검 종료일은 시작일보다 빠를 수 없습니다.");
+        return null;
+      }
+      return { start, end };
+    }
+
+    function rawRowsForStudent(info, sheetName) {
+      const sid = info?._학번 || info?.학번 || "";
+      const rows = state.originalRowsByStudent?.get(sid) || [];
+      return rows.filter(row => row.원본시트 === sheetName);
+    }
+
+    function sleepAnalysisDateKey(row) {
+      const recordDate = parseDateFlexible(value(row, sleepDateColumns));
+      if (!recordDate) return "";
+      const bedtime = timeText(value(row, ["취침시간", "취침 시간"]));
+      const wakeTime = timeText(value(row, ["기상시간", "기상 시간"]));
+      const wakeDateRaw = value(row, ["기상날짜", "기상 날짜", "일어난 날짜", "기상일"]);
+      return buildSleepWindow(recordDate, bedtime, wakeTime, state?.options?.sleepBasis || $("sleepBasis")?.value, wakeDateRaw).analysisDate;
+    }
+
+    function getStudentWorkbookCheckPeriod(info, dailyRows) {
+      const uiStart = parseDateFlexible($("dataCheckStart")?.value);
+      const uiEnd = parseDateFlexible($("dataCheckEnd")?.value);
+      if (uiStart && uiEnd && uiEnd >= uiStart) return { start: uiStart, end: uiEnd };
+
+      const dates = [];
+      dailyRows.forEach(row => {
+        const dt = parseDateFlexible(row.분석일);
+        if (dt) dates.push(dt);
+      });
+      rawRowsForStudent(info, "caffeine").forEach(row => {
+        const dt = parseDateFlexible(value(row, ["섭취시간", "섭취 시간"]));
+        if (dt) dates.push(dt);
+      });
+      rawRowsForStudent(info, "sleep").forEach(row => {
+        const dt = parseDateFlexible(sleepAnalysisDateKey(row));
+        if (dt) dates.push(dt);
+      });
+      if (!dates.length) return null;
+      return {
+        start: new Date(Math.min(...dates.map(dt => dt.getTime()))),
+        end: new Date(Math.max(...dates.map(dt => dt.getTime())))
+      };
+    }
+
+    function buildStudentDateCheckRows(info, period) {
+      const caffeineRows = rawRowsForStudent(info, "caffeine");
+      const sleepRows = rawRowsForStudent(info, "sleep");
+      const checkRows = [];
+      for (let dt = period.start; dt <= period.end; dt = addDays(dt, 1)) {
+        const key = dateKeyFlexible(dt);
+        const dayCaffeine = caffeineRows.filter(row => dateKeyFlexible(value(row, ["섭취시간", "섭취 시간"])) === key);
+        const daySleep = sleepRows.find(row => sleepAnalysisDateKey(row) === key);
+        const studentKey = info?._학번 || info?.학번 || info?.익명ID || "";
+        const hasCaffeineToday = dayCaffeine.some(row => num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"])) > 0);
+        const isConnected = hasCaffeineToday
+          ? (state.caffeineConnectionMap?.get(`${studentKey}||${key}`) === true)
+          : true;
+        const expectedSleepDate = hasCaffeineToday && !isConnected ? dateKeyFlexible(addDays(dt, 1)) : "";
+        const caffeineAmounts = dayCaffeine.map(row => num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"]))).filter(v => v !== null);
+        const caffeineTotal = dayCaffeine.length ? caffeineAmounts.reduce((sum, amount) => sum + Number(amount || 0), 0) : "";
+        const intakeTimes = dayCaffeine.map(row => timeText(value(row, ["섭취시간", "섭취 시간"]))).filter(Boolean).join(", ");
+        const drinks = dayCaffeine.map(row => value(row, ["음료명", "음료"])).filter(Boolean).join(", ");
+        const bedtime = daySleep ? timeText(value(daySleep, ["취침시간"])) : "";
+        const wakeTime = daySleep ? timeText(value(daySleep, ["기상시간"])) : "";
+        const sleepHours = daySleep ? (num(value(daySleep, ["수면시간(h)", "수면시간", "수면 시간"])) ?? "") : "";
+        const conditionRaw = daySleep ? value(daySleep, ["수면 후 컨디션", "수면컨디션", "컨디션", "기상 후 컨디션"]) : "";
+        const conditionScore = conditionRaw ? scoreConditionChoice(conditionRaw).score : "";
+        const missing = [];
+        const selfMissing = [];
+        const connectionMissing = [];
+        if (!dayCaffeine.length && daySleep) missing.push("카페인 기록 누락(미섭취면 0mg 입력)");
+        if (dayCaffeine.length && caffeineAmounts.length !== dayCaffeine.length) missing.push("카페인 함량 누락");
+        if (!daySleep && !dayCaffeine.length) selfMissing.push("카페인 기록과 수면 기록 모두 없음");
+        if (daySleep && (!bedtime || !wakeTime)) selfMissing.push("취침/기상 시간 누락");
+        if (daySleep && sleepHours === "") selfMissing.push("수면 시간 누락");
+        if (daySleep && conditionScore === "") selfMissing.push("수면 품질 점수 확인");
+        if (hasCaffeineToday && !isConnected) {
+          connectionMissing.push(`${key} 카페인 섭취가 연결된 수면기록 없음 (수면기록 누락 가능성)`);
+        }
+        missing.push(...selfMissing, ...connectionMissing);
+        checkRows.push({
+          날짜: key,
+          "카페인 섭취량(mg)": caffeineTotal,
+          "섭취 시간": intakeTimes,
+          "카페인 종류": drinks,
+          "카페인 연결 수면기록일": hasCaffeineToday ? (isConnected ? "(분석에서 연결됨)" : expectedSleepDate) : "",
+          "수면 시작 시간": bedtime,
+          "수면 종료 시간": wakeTime,
+          "수면 시간(h)": sleepHours,
+          "수면 품질(1~5)": conditionScore,
+          "해당 날짜 수면기록 상태": daySleep ? "있음" : "없음",
+          "카페인 연결 수면기록 상태": hasCaffeineToday ? (isConnected ? "있음" : "없음") : "",
+          "점검 상태": missing.length ? "수정 필요" : "정상",
+          비고: missing.join("; ")
+        });
+      }
+      return checkRows;
+    }
+
+    function formatStudentRawRows(rows) {
+      if (rows?.[0]?.원본시트 === "sleep") {
+        return formatSleepRowsForExport(rows).map(row => {
+          const out = { ...row };
+          delete out.__rowNum;
+          return out;
+        });
+      }
+      return rows.map(row => {
+        const out = { ...row };
+        delete out.__rowNum;
+        if (out.타임스탬프) out.타임스탬프 = displayDateValue(out.타임스탬프, true);
+        if (out.섭취시간) out.섭취시간 = displayDateValue(out.섭취시간, true);
+        if (out.수면기록) out.수면기록 = displayDateValue(out.수면기록, false);
+        if (out.날짜) out.날짜 = displayDateValue(out.날짜, false);
+        if (out.취침날짜) out.취침날짜 = sleepBedDateKey(out);
+        if (out["취침 날짜"]) out["취침 날짜"] = sleepBedDateKey(out);
+        if (out.취침시간) out.취침시간 = timeText(out.취침시간);
+        if (out.기상시간) out.기상시간 = timeText(out.기상시간);
+        return out;
+      });
+    }
+
+    function buildStudentDataCheckWorkbook(sid, period) {
+      const rows = state.analysis.filter(row => row.익명ID === sid);
+      if (!rows.length) return null;
+      const info = rows[0];
+      const caffeineRows = rawRowsForStudent(info, "caffeine");
+      const sleepRows = rawRowsForStudent(info, "sleep");
+      const checkRows = [];
+      for (let dt = period.start; dt <= period.end; dt = addDays(dt, 1)) {
+        const key = dateKeyFlexible(dt);
+        const dayCaffeine = caffeineRows.filter(row => dateKeyFlexible(value(row, ["섭취시간", "섭취 시간"])) === key);
+        const daySleep = sleepRows.find(row => sleepAnalysisDateKey(row) === key);
+        const studentKey = info?._학번 || info?.학번 || info?.익명ID || "";
+        const hasCaffeineToday = dayCaffeine.some(row => num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"])) > 0);
+        const isConnected = hasCaffeineToday
+          ? (state.caffeineConnectionMap?.get(`${studentKey}||${key}`) === true)
+          : true;
+        const expectedSleepDate = hasCaffeineToday && !isConnected ? dateKeyFlexible(addDays(dt, 1)) : "";
+        const caffeineAmounts = dayCaffeine.map(row => num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"]))).filter(v => v !== null);
+        const caffeineTotal = dayCaffeine.length ? caffeineAmounts.reduce((sum, amount) => sum + Number(amount || 0), 0) : "";
+        const intakeTimes = dayCaffeine.map(row => timeText(value(row, ["섭취시간", "섭취 시간"]))).filter(Boolean).join(", ");
+        const drinks = dayCaffeine.map(row => value(row, ["음료명", "음료"])).filter(Boolean).join(", ");
+        const bedtime = daySleep ? timeText(value(daySleep, ["취침시간"])) : "";
+        const wakeTime = daySleep ? timeText(value(daySleep, ["기상시간"])) : "";
+        const sleepHours = daySleep ? (num(value(daySleep, ["수면시간(h)", "수면시간", "수면 시간"])) ?? "") : "";
+        const conditionRaw = daySleep ? value(daySleep, ["수면 후 컨디션", "수면컨디션", "컨디션", "기상 후 컨디션"]) : "";
+        const conditionScore = conditionRaw ? scoreConditionChoice(conditionRaw).score : "";
+        const missing = [];
+        const selfMissing = [];
+        const connectionMissing = [];
+        if (!dayCaffeine.length && daySleep) missing.push("카페인 기록 누락(미섭취면 0mg 입력)");
+        if (dayCaffeine.length && caffeineAmounts.length !== dayCaffeine.length) missing.push("카페인 함량 누락");
+        if (!daySleep && !dayCaffeine.length) selfMissing.push("카페인 기록과 수면 기록 모두 없음");
+        if (daySleep && (!bedtime || !wakeTime)) selfMissing.push("취침/기상 시간 누락");
+        if (daySleep && sleepHours === "") selfMissing.push("수면 시간 누락");
+        if (daySleep && conditionScore === "") selfMissing.push("수면 품질 점수 확인");
+        if (hasCaffeineToday && !isConnected) {
+          connectionMissing.push(`${key} 카페인 섭취가 연결된 수면기록 없음 (수면기록 누락 가능성)`);
+        }
+        missing.push(...selfMissing, ...connectionMissing);
+        checkRows.push({
+          날짜: key,
+          "카페인 섭취량(mg)": caffeineTotal,
+          "섭취 시간": intakeTimes,
+          "카페인 종류": drinks,
+          "카페인 연결 수면기록일": hasCaffeineToday ? (isConnected ? "(분석에서 연결됨)" : expectedSleepDate) : "",
+          "수면 시작 시간": bedtime,
+          "수면 종료 시간": wakeTime,
+          "수면 시간(h)": sleepHours,
+          "수면 품질(1~5)": conditionScore,
+          "해당 날짜 수면기록 상태": daySleep ? "있음" : "없음",
+          "카페인 연결 수면기록 상태": hasCaffeineToday ? (isConnected ? "있음" : "없음") : "",
+          "점검 상태": missing.length ? "수정 필요" : "정상",
+          비고: missing.join("; ")
+        });
+      }
+      const summary = [
+        { 항목: "학생", 값: `${info._학번 || ""} ${info.이름 || ""}`.trim() },
+        { 항목: "점검 기간", 값: `${dateKeyFlexible(period.start)} ~ ${dateKeyFlexible(period.end)}` },
+        { 항목: "수정 필요 일수", 값: checkRows.filter(row => row["점검 상태"] === "수정 필요").length },
+        { 항목: "카페인 원본 기록 수", 값: caffeineRows.length },
+        { 항목: "수면 원본 기록 수", 값: sleepRows.length },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "이 파일은 2차시 내 데이터 점검 활동용입니다.",
+        "1. 날짜별로 카페인 섭취량과 수면 기록이 모두 있는지 확인합니다.",
+        "2. 카페인을 마시지 않은 날도 0mg으로 기록되어 있는지 확인합니다.",
+        "3. 점검 상태가 수정 필요인 행은 비고를 보고 원자료를 보완합니다.",
+        "4. 원본_카페인과 원본_수면 시트에는 해당 학생의 원본 기록만 들어 있습니다."
+      ])), "활동안내");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "점검요약");
+      appendJsonSheet(wb, checkRows, "날짜별_누락점검", { statusColumn: "점검 상태", statusValues: ["수정 필요"] });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatStudentRawRows(caffeineRows)), "원본_카페인");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(formatStudentRawRows(sleepRows)), "원본_수면");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+        { 구분: "날짜", 확인내용: "교사가 지정한 점검 시작일~종료일 범위의 날짜가 모두 있는지 확인" },
+        { 구분: "카페인", 확인내용: "섭취량이 숫자로 입력되어 있는지 확인. 미섭취일은 0 입력" },
+        { 구분: "수면", 확인내용: "취침시간, 기상시간, 수면시간이 빠지지 않았는지 확인" },
+        { 구분: "수면 품질", 확인내용: "😫, 😴, 😐, 🙂, 😊 중 하나로 입력되어 점수화되는지 확인" },
+      ]), "점검기준");
+      return { wb, info };
+    }
+
+    function dataCheckFileName(info) {
+      const safe = str => String(str).replace(/[\\/:*?"<>|]/g, "_");
+      return `2차시_내데이터점검_${safe(info._학번 || info.학번 || "unknown")}_${safe(info.이름 || "이름없음")}.xlsx`;
+    }
+
+    function downloadDataCheck() {
+      const sid = $("studentCheckSelect").value;
+      if (!sid) { alert("학생을 선택해주세요."); return; }
+      const period = getDataCheckPeriod();
+      if (!period) return;
+      const result = buildStudentDataCheckWorkbook(sid, period);
+      if (!result) { alert("해당 학생 데이터가 없습니다."); return; }
+      XLSX.writeFile(result.wb, dataCheckFileName(result.info));
+    }
+
+    async function downloadDataCheckZip() {
+      if (typeof JSZip === "undefined") {
+        alert("압축 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
+        return;
+      }
+      const klass = $("classForCheck").value;
+      const rows = state.analysis;
+      const filtered = klass ? rows.filter(r => String(r.반) === klass) : rows;
+      const sids = [...new Set(filtered.map(r => r.익명ID))];
+      if (!sids.length) { alert("다운로드할 학생이 없습니다."); return; }
+      const period = getDataCheckPeriod();
+      if (!period) return;
+      const btn = $("downloadDataCheckZip");
+      btn.disabled = true;
+      const zip = new JSZip();
+      for (const sid of sids) {
+        const result = buildStudentDataCheckWorkbook(sid, period);
+        if (!result) continue;
+        const bytes = XLSX.write(result.wb, { bookType: "xlsx", type: "array" });
+        zip.file(dataCheckFileName(result.info), bytes);
+        await new Promise(r => setTimeout(r, 0));
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = klass ? `2차시_내데이터점검_${klass}반.zip` : "2차시_내데이터점검_전체.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      btn.disabled = false;
+      updateDataCheckButtons();
+    }
+
+    // ─── 학생 1명 파일 생성 ────────────────────────────────────────────
+    function buildStudentWorkbook(sid) {
+      const rows = state.analysis;
+      const dailyRows = rows.filter(r => r.익명ID === sid);
+      if (!dailyRows.length) return null;
+
+      const info = dailyRows[0];
+      const classRows = state.classSummary.filter(r => String(r.반) === String(info.반));
+      const classByDate = new Map(classRows.map(r => [r.분석일, r]));
+      const checkPeriod = getStudentWorkbookCheckPeriod(info, dailyRows);
+      const checkRows = checkPeriod ? buildStudentDateCheckRows(info, checkPeriod) : [];
+      const checkByDate = new Map(checkRows.map(row => [row.날짜, row]));
+      const dailyByDate = new Map(dailyRows.map(row => [row.분석일, row]));
+      const personalDates = checkRows.length ? checkRows.map(row => row.날짜) : dailyRows.map(row => row.분석일);
+      const myRows = personalDates.map(analysisDate => {
+        const row = dailyByDate.get(analysisDate) || { 분석일: analysisDate };
+        const check = checkByDate.get(analysisDate) || {};
+        return ({
+          분석일: row.분석일,
+          나의_일일카페인총량_mg: row.일일카페인총량_mg,
+          나의_카페인섭취횟수: row.카페인섭취횟수,
+          나의_카페인종류: row.주요음료,
+          나의_최후섭취시각: row.최후섭취시각,
+          나의_카페인집계구간: row.카페인집계구간,
+          나의_오전카페인여부: row.오전카페인여부,
+          나의_오후카페인여부: row.오후카페인여부,
+          나의_저녁카페인여부: row.저녁카페인여부,
+          나의_수면시간_h: row.수면시간_h,
+          나의_컨디션_원자료: row.수면컨디션_원자료,
+          나의_컨디션_점수: row.수면컨디션_점수,
+          나의_수면컨디션_점수: row.수면컨디션_점수,
+          나의_취침전스마트폰_점수: row.취침전스마트폰_점수,
+          나의_신체활동_점수: row.신체활동_점수,
+          나의_수면잠복기_점수: row.수면잠복기_점수,
+          나의_중도각성_점수: row.중도각성_점수,
+          나의_낮졸음집중력_점수: row.낮졸음집중력_점수,
+          나의_수면시간_분류: row.수면시간_분류,
+          나의_권장수면여부: row.권장수면여부,
+          나의_수면양호여부: row.수면양호여부,
+          반평균_카페인총량_mg: classByDate.get(row.분석일)?.평균카페인총량_mg ?? "",
+          반평균_수면시간_h: classByDate.get(row.분석일)?.평균수면시간_h ?? "",
+          반평균_컨디션_점수: classByDate.get(row.분석일)?.평균수면컨디션 ?? "",
+          반평균_수면컨디션_점수: classByDate.get(row.분석일)?.평균수면컨디션 ?? "",
+          "점검 상태": check["점검 상태"] || (row.데이터품질상태 === "확인필요" ? "수정 필요" : "정상"),
+          비고: check.비고 || row.데이터품질메모 || ""
+        });
+      });
+      const personalColumns = [
+        "분석일", "나의_일일카페인총량_mg", "나의_카페인섭취횟수", "나의_카페인종류", "나의_최후섭취시각",
+        "나의_카페인집계구간", "나의_오전카페인여부", "나의_오후카페인여부", "나의_저녁카페인여부", "나의_수면시간_h", "나의_컨디션_원자료", "나의_컨디션_점수",
+        "나의_취침전스마트폰_점수", "나의_신체활동_점수", "나의_수면잠복기_점수", "나의_중도각성_점수", "나의_낮졸음집중력_점수", "나의_수면시간_분류",
+        "나의_권장수면여부", "나의_수면양호여부", "반평균_카페인총량_mg", "반평균_수면시간_h", "반평균_컨디션_점수",
+        "점검 상태", "비고"
+      ];
+      const personalRows = myRows.map(row => pickColumns(row, personalColumns));
+      const compareRows = myRows.map(row => pickColumns(row, ["분석일", "나의_일일카페인총량_mg", "나의_카페인종류", "반평균_카페인총량_mg", "나의_수면시간_h", "반평균_수면시간_h", "나의_컨디션_점수", "반평균_컨디션_점수"]));
+      const graphRows = myRows.map(row => pickColumns(row, ["분석일", "나의_일일카페인총량_mg", "나의_수면시간_h", "나의_컨디션_점수", "반평균_컨디션_점수", "나의_취침전스마트폰_점수", "나의_수면잠복기_점수", "나의_중도각성_점수"]));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "이 파일은 4차시 개인 데이터 분석 활동용입니다.",
+        "1. 개인_일별자료 시트에서 나의 카페인량, 수면시간, 컨디션 변화를 확인합니다.",
+        "2. 그래프용 시트에서 산점도 또는 선그래프를 만듭니다.",
+        "3. 반평균_비교 시트에서 내 기록이 반 평균과 비슷한지 다른지 확인합니다.",
+        "4. 수면에 영향을 준 것 같은 요인 2가지를 고릅니다.",
+        "5. 해석질문 시트에 나의 가설을 작성합니다.",
+      ])), "활동안내");
+      appendJsonSheet(wb, personalRows, "개인_일별자료", { statusColumn: "점검 상태", statusValues: ["수정 필요"] });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(compareRows), "반평균_비교");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(graphRows), "그래프용");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(questionSheet([
+        "나의 수면시간과 카페인량은 어떤 관계로 보이나요?",
+        "반 평균과 비교했을 때 내가 높은 항목과 낮은 항목은 무엇인가요?",
+        "나의 수면에 영향을 준 것 같은 요인 2가지를 고르고 근거를 적어보세요.",
+      ])), "해석질문");
+      return { wb, info };
+    }
+
+    // 파일명: 4차시_개인별분석자료_학번_이름.xlsx
+    function studentFileName(info, suffix = "") {
+      const safe = str => String(str).replace(/[\\/:*?"<>|]/g, "_");
+      const studentId = safe(info._학번 || info.학번 || "unknown");
+      const name = safe(info.이름 || "이름없음");
+      return `4차시_개인별분석자료_${studentId}_${name}${suffix}.xlsx`;
+    }
+
+    function buildClassVisualizationWorkbook(klass = "") {
+      const classRows = state.classSummary.filter(row => !klass || String(row.반) === String(klass));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "[3차시] 우리 반 카페인·수면 패턴 분석 활동",
+        "",
+        "★ 노란색 탭 시트가 오늘 직접 작업하는 시트입니다.",
+        "- 🟡반_음료별원본: 음료 종류별 집계 피벗 (질문 1번)",
+        "- 🟡반_일별원본: 수면·카페인 수치 분석 피벗 (질문 2~3번)",
+        "- 🟡오전오후저녁_비교: 오전·오후·저녁 카페인 여부별 비교 (질문 4번)",
+        "- 🟡그래프용_산점도: 학생 평균 데이터 산점도 (질문 5번)",
+        "",
+        "[STEP 1] 🟡반_음료별원본 시트 → 질문 1번",
+        "- 음료명 열로 피벗테이블을 만들어 음료별 섭취 횟수를 집계합니다.",
+        "- 주의: 이 시트는 음료별 집계 전용입니다.",
+        "  수면 평균 계산에는 사용하지 마세요 (같은 날 데이터가 중복됩니다).",
+        "",
+        "[STEP 2] 🟡반_일별원본 시트 → 질문 2~3번",
+        "- 날짜×학생 1행 구조입니다.",
+        "- 피벗테이블로 카페인 시간대별 횟수, 취침시간대 분포를 분석합니다.",
+        "",
+        "[STEP 3] 🟡오전오후저녁_비교 시트 → 질문 4번",
+        "- 이미 계산된 비교표를 보고 차트 3개를 만듭니다.",
+        "- 수면시간 / 수면컨디션 / 수면양호율을 시간대별로 비교합니다.",
+        "- 차트를 만들기 전, 상관관계와 인과관계의 차이를 먼저 확인하세요 (학생 가이드 참고).",
+        "",
+        "[STEP 4] 🟡그래프용_산점도 또는 🟡반_일별원본 → 질문 5번",
+        "- 두 변수를 골라 산점도를 만들고 관계를 해석합니다.",
+        "- 산점도는 상관관계를 보여줄 뿐 인과관계를 증명하지 않습니다.",
+        "",
+        "[STEP 5] 결과 검증",
+        "- 흰색 탭 시트(카페인_종류별, 취침시간_분포 등)와 비교합니다.",
+        "",
+        "[STEP 6] 구글 활동지에 답변 작성",
+      ])), "활동안내");
+      appendJsonSheetWithTabColor(wb, classDrinkRows(klass), "🟡반_음료별원본");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(caffeineDrinkRows(klass)), "카페인_종류별");
+      appendJsonSheetWithTabColor(wb, classDailyRawRows(klass), "🟡반_일별원본");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(caffeineTimeRows(klass)), "카페인_시간대별");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(distributionRows(klass, "취침시간", bedtimeBand, ["22시 이전", "22시대", "23시대", "0시대", "1시 이후", "시간 미상"], "취침시간대")), "취침시간_분포");
+      appendJsonSheetWithTabColor(wb, flagCompareRows(klass), "🟡오전오후저녁_비교");
+      appendJsonSheetWithTabColor(wb, classScatterRows(klass), "🟡그래프용_산점도");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(classRows), "반별_핵심요약");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(distributionRows(klass, "기상시간", wakeBand, ["6시 이전", "6시대", "7시대", "8시 이후", "시간 미상"], "기상시간대")), "기상시간_분포");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.variableDescriptions), "변수설명");
+      return wb;
+    }
+
+    function buildQualityWorkbook(klass) {
+      const rows = classDailyRows(klass);
+      const errors = state.errors.filter(row => String(row.반) === String(klass));
+      const students = new Set(rows.map(row => row.익명ID)).size;
+      const summary = [
+        { 항목: "총 학생 수", 값: students },
+        { 항목: "총 수면 기록 수", 값: rows.length },
+        { 항목: "총 카페인 기록 수", 값: rows.reduce((sum, row) => sum + Number(row.카페인섭취횟수 || 0), 0) },
+        { 항목: "분석 가능 기록 수", 값: rows.filter(row => row.수면양호여부 !== "").length },
+        { 항목: "결측치 수", 값: errors.filter(row => String(row.오류유형).includes("누락") || String(row.오류유형).includes("결측")).length },
+        { 항목: "날짜 파싱 오류 수", 값: errors.filter(row => String(row.오류유형).includes("날짜 파싱")).length },
+        { 항목: "수면시간 이상치 수", 값: errors.filter(row => String(row.오류유형).includes("수면시간")).length },
+        { 항목: "수면 컨디션 이모지 오류 수", 값: errors.filter(row => String(row.오류유형).includes("수면컨디션")).length },
+        { 항목: "카페인 함량 누락 수", 값: errors.filter(row => String(row.오류유형).includes("카페인") && String(row.오류유형).includes("누락")).length },
+        { 항목: "선택지 외 값 수", 값: errors.filter(row => String(row.오류유형).includes("선택지 외 값")).length },
+        { 항목: "수면 기록 누락 수", 값: errors.filter(row => String(row.오류유형).includes("수면 기록 누락")).length },
+        { 항목: "카페인 기록 연결 실패 수", 값: errors.filter(row => String(row.오류유형).includes("카페인 기록 연결 실패")).length },
+      ];
+      const errorRows = errors.map(row => ({
+        "시트 구분": row.원본시트,
+        "행 번호": row.원본행번호,
+        반: row.반,
+        번호: row.번호,
+        성명: row.이름,
+        날짜: row.원자료날짜값 || row.분석일,
+        "오류 유형": row.오류유형,
+        "원래 값": row.원자료값,
+        "오류 설명": row.확인메시지,
+        "수정 방법": row.권장처리,
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "기록품질_요약");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(errorRows), "오류목록");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "카페인 함량이 없으면 숫자로 입력하거나, 섭취하지 않은 날은 0으로 입력한다.",
+        "수면 컨디션은 😫, 😴, 😐, 🙂, 😊 중 하나만 사용한다.",
+        "취침전 스마트폰 사용은 안 함, 30분 미만, 30~60분, 60분 이상 중 하나만 사용한다.",
+        "중도각성횟수는 없음, 1번, 2번, 3번 이상 중 하나만 사용한다.",
+        "날짜는 YYYY-MM-DD 형식으로 정리한다.",
+      ])), "수정안내");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "이 파일은 3차시 기록 품질 점검 활동용입니다.",
+        "1. 기록품질_요약 시트를 확인합니다.",
+        "2. 오류목록 시트에서 어떤 오류가 많은지 확인합니다.",
+        "3. 오류가 분석 결과에 어떤 영향을 줄지 생각합니다.",
+        "4. 앞으로 기록할 때 개선할 점을 적습니다.",
+      ])), "활동안내");
+      return wb;
+    }
+
+    // ─── 단일 학생 다운로드 ────────────────────────────────────────────
+    function downloadOneStudent() {
+      const sid = $("studentSelect").value;
+      if (!sid) {
+        alert("학생을 선택해주세요.");
+        return;
+      }
+      const result = buildStudentWorkbook(sid);
+      if (!result) { alert("해당 학생 데이터가 없습니다."); return; }
+      const { wb, info } = result;
+      XLSX.writeFile(wb, studentFileName(info));
+    }
+
+    // ─── 전체(또는 선택 반) 학생 개별 일괄 다운로드 ────────────────────
+    async function downloadAllStudents() {
+      if (typeof JSZip === "undefined") {
+        alert("압축 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
+        return;
+      }
+
+      const klass = $("classForStudent").value;
+      const rows = state.analysis;
+      const filtered = klass ? rows.filter(r => String(r.반) === klass) : rows;
+      const sids = [...new Set(filtered.map(r => r.익명ID))];
+
+      if (!sids.length) { alert("다운로드할 학생이 없습니다."); return; }
+
+      const btn = $("downloadAllStudents");
+      btn.disabled = true;
+
+      const wrap = document.getElementById("progressWrap");
+      const bar  = document.getElementById("progressBar");
+      wrap.style.display = "block";
+
+      const zip = new JSZip();
+      for (let i = 0; i < sids.length; i++) {
+        bar.style.width = `${Math.round((i / sids.length) * 100)}%`;
+        const result = buildStudentWorkbook(sids[i]);
+        if (!result) continue;
+        const { wb, info } = result;
+        const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        zip.file(studentFileName(info), bytes);
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" }, metadata => {
+        bar.style.width = `${Math.round(metadata.percent)}%`;
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = klass ? `4차시_개인별분석자료_${klass}반_${stamp}.zip` : `4차시_개인별분석자료_전체_${stamp}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      bar.style.width = "100%";
+      setTimeout(() => {
+        wrap.style.display = "none";
+        bar.style.width = "0%";
+        btn.disabled = false;
+      }, 800);
+    }
+
+    // ─── 반별 다운로드 ────────────────────────────────────────────────
+    function downloadByClass() {
+      const klass = $("classSelect").value;
+      if (!klass) { alert("반을 선택해주세요."); return; }
+      const wb = buildClassVisualizationWorkbook(klass);
+      XLSX.writeFile(wb, "3차시_반별활동지_" + klass + "반.xlsx");
+    }
+
+    async function downloadAllClass() {
+      const rows = state.analysis;
+      const classes = [...new Set(rows.map(r => String(r.반)))].filter(Boolean).sort();
+      const btn = $("downloadAllClass");
+      btn.disabled = true;
+      for (const klass of classes) {
+        const wb = buildClassVisualizationWorkbook(klass);
+        XLSX.writeFile(wb, "3차시_반별활동지_" + klass + "반.xlsx");
+        await new Promise(r => setTimeout(r, 120));
+      }
+      btn.disabled = false;
+    }
+
+    function downloadTaskFile() {
+      const klass = $("classSelectTask").value;
+      if (!klass) { alert("반을 선택해주세요."); return; }
+      const wb = buildQualityWorkbook(klass);
+      XLSX.writeFile(wb, "3차시_기록품질점검자료_" + klass + "반.xlsx");
+    }
+
+    function filterRawRowsByClass(rows, klass) {
+      return (rows || []).filter(row => !klass || String(value(row, ["반"]) || row.반 || "") === String(klass));
+    }
+
+    function buildClassDetailedCheckRows(klass) {
+      const analysisRows = state.analysis.filter(row => !klass || String(row.반) === String(klass));
+      const grouped = new Map();
+      analysisRows.forEach(row => {
+        const sid = row._학번 || row.익명ID;
+        if (!sid) return;
+        if (!grouped.has(sid)) grouped.set(sid, []);
+        grouped.get(sid).push(row);
+      });
+      const rows = [];
+      grouped.forEach(studentRows => {
+        const info = studentRows[0];
+        const caffeineRows = rawRowsForStudent(info, "caffeine");
+        const sleepRows = rawRowsForStudent(info, "sleep");
+        const dates = [];
+        caffeineRows.forEach(row => {
+          const dt = parseDateFlexible(value(row, ["섭취시간", "섭취 시간"]));
+          if (dt) dates.push(dt);
+        });
+        sleepRows.forEach(row => {
+          const dt = parseDateFlexible(sleepAnalysisDateKey(row));
+          if (dt) dates.push(dt);
+        });
+        if (!dates.length) return;
+        const start = new Date(Math.min(...dates.map(dt => dt.getTime())));
+        const end = new Date(Math.max(...dates.map(dt => dt.getTime())));
+        for (let dt = start; dt <= end; dt = addDays(dt, 1)) {
+          const key = dateKeyFlexible(dt);
+          const dayCaffeine = caffeineRows.filter(row => dateKeyFlexible(value(row, ["섭취시간", "섭취 시간"])) === key);
+          const daySleep = sleepRows.find(row => sleepAnalysisDateKey(row) === key);
+          const studentKey = info?._학번 || info?.학번 || info?.익명ID || "";
+          const hasCaffeineToday = dayCaffeine.some(row => num(value(row, ["함량", "카페인(mg)", "카페인mg", "카페인"])) > 0);
+          const isConnected = hasCaffeineToday
+            ? (state.caffeineConnectionMap?.get(`${studentKey}||${key}`) === true)
+            : true;
+          const expectedSleepDate = hasCaffeineToday && !isConnected ? dateKeyFlexible(addDays(dt, 1)) : "";
+          const issues = [];
+          if (!dayCaffeine.length && !daySleep) issues.push("카페인 기록과 수면 기록 모두 없음");
+          if (!dayCaffeine.length && daySleep) issues.push("카페인 기록 누락(미섭취면 0mg 입력)");
+          if (!daySleep && dayCaffeine.length) issues.push(`${key} 날짜의 수면기록 없음`);
+          if (hasCaffeineToday && !isConnected) issues.push(`${key} 카페인 섭취가 연결된 수면기록 없음`);
+          rows.push({
+            반: info.반,
+            번호: info.번호,
+            이름: info.이름,
+            학번: info._학번,
+            날짜: key,
+            카페인기록수: dayCaffeine.length,
+            카페인종류: dayCaffeine.map(row => value(row, ["음료명", "음료"])).filter(Boolean).join(", "),
+            카페인섭취시간: dayCaffeine.map(row => timeText(value(row, ["섭취시간", "섭취 시간"]))).filter(Boolean).join(", "),
+            해당날짜수면기록: daySleep ? "있음" : "없음",
+            카페인연결수면기록일: hasCaffeineToday ? (isConnected ? "(분석에서 연결됨)" : expectedSleepDate) : "",
+            카페인연결수면기록: hasCaffeineToday ? (isConnected ? "있음" : "없음") : "",
+            검수상태: issues.length ? "확인필요" : "정상",
+            상세메모: issues.join("; ")
+          });
+        }
+      });
+      return rows;
+    }
+
+    function enrichReviewErrors(errors, detailedRows) {
+      const extra = detailedRows.filter(row => row.검수상태 === "확인필요").map(row => ({
+        원본시트: "teacher_review",
+        원본행번호: "",
+        반: row.반,
+        번호: row.번호,
+        이름: row.이름,
+        학번: row.학번,
+        분석일: row.날짜,
+        원자료날짜값: row.날짜,
+        오류유형: row.상세메모.includes("연결된 수면기록") ? "카페인 연결 수면기록 누락" : "날짜별 기록 누락",
+        원자료값: row.카페인종류 || "기록 없음",
+        확인메시지: row.상세메모,
+        권장처리: row.카페인연결수면기록일 ? `${row.카페인연결수면기록일} 수면기록 입력 여부 확인` : "해당 날짜의 원자료 입력 여부 확인"
+      }));
+      return errors.concat(extra);
+    }
+
+    function buildTeacherReviewWorkbook(lesson, klass) {
+      const analysisRows = state.teacherAnalysis.filter(row => !klass || String(row.반) === String(klass));
+      const errors = state.errors.filter(row => !klass || String(row.반) === String(klass));
+      const comparison = state.preprocessComparisonTeacher.filter(row => !klass || String(row.반) === String(klass));
+      const classRows = state.classSummary.filter(row => !klass || String(row.반) === String(klass));
+      const personalRows = state.personalSummary.filter(row => !klass || String(row.반) === String(klass));
+      const rawCaffeine = filterRawRowsByClass(state.rawCaffeine, klass);
+      const rawSleep = filterRawRowsByClass(state.rawSleep, klass);
+      const rawStudents = filterRawRowsByClass(state.rawStudents, klass);
+      const detailedCheckRows = buildClassDetailedCheckRows(klass);
+      const reviewErrors = enrichReviewErrors(errors, detailedCheckRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+        { 항목: "차시", 값: `${lesson}차시` },
+        { 항목: "반", 값: klass ? `${klass}반` : "전체" },
+        { 항목: "원본 카페인 기록 수", 값: rawCaffeine.length },
+        { 항목: "원본 수면 기록 수", 값: rawSleep.length },
+        { 항목: "전처리 분석 행 수", 값: analysisRows.length },
+        { 항목: "오류확인 행 수", 값: reviewErrors.length },
+        { 항목: "날짜별 상세 검수 확인필요 수", 값: detailedCheckRows.filter(row => row.검수상태 === "확인필요").length },
+        { 항목: "검수 방법", 값: "원자료_카페인/원자료_수면과 분석데이터, 전처리비교, 오류확인을 대조해 전처리 결과를 확인하세요." },
+      ]), "검수요약");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawStudents), "원자료_학생정보");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawCaffeine), "원자료_카페인");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawSleep), "원자료_수면");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysisRows), "분석데이터");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(comparison), "전처리비교");
+      appendJsonSheet(wb, reviewErrors, "오류확인", { statusColumn: "오류유형", statusValues: reviewErrors.map(row => row.오류유형).filter(Boolean) });
+      appendJsonSheet(wb, detailedCheckRows, "날짜별_상세검수", { statusColumn: "검수상태", statusValues: ["확인필요"] });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(classRows), "반별요약");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(personalRows), "학생별요약");
+      if (String(lesson) === "3") {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(caffeineDrinkRows(klass)), "3차시_카페인종류별");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(caffeineTimeRows(klass)), "3차시_카페인시간대별");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flagCompareRows(klass)), "3차시_오전오후저녁비교");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(classScatterRows(klass)), "3차시_산점도검수");
+      }
+      if (String(lesson) === "4") {
+        const treeRows = state.analysis
+          .filter(row => (!klass || String(row.반) === String(klass)) && row.수면양호여부 !== "")
+          .map(row => pickColumns(row, treeColumns))
+          .filter(row => treeColumns.every(col => row[col] !== "" && row[col] !== null && row[col] !== undefined));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(treeRows), "4차시_AI입력검수");
+      }
+      return wb;
+    }
+
+    function downloadTeacherReview() {
+      const lesson = $("reviewLesson").value;
+      const klass = $("classSelectReview").value;
+      if (!klass) { alert("검수할 반을 선택해주세요."); return; }
+      const wb = buildTeacherReviewWorkbook(lesson, klass);
+      XLSX.writeFile(wb, `교사용_${lesson}차시_${klass}반_검수자료.xlsx`);
+    }
+
+    function resetApp() {
+      state = null;
+      activeTab = "teacherAnalysis";
+      $("file").value = "";
+      $("dropHint").textContent = "엑셀 파일을 여기에 드래그하거나 파일 선택 버튼을 눌러 업로드하세요.";
+      $("message").className = "notice warn";
+      $("message").textContent = "이 앱은 교사용 전처리 도구입니다. 학생에게는 원자료가 아닌 익명화된 분석 자료 또는 개인별 자료만 제공합니다.";
+      $("metrics").innerHTML = "";
+      $("tabs").innerHTML = "";
+      $("table").innerHTML = '<div class="empty">아직 표시할 데이터가 없습니다.</div>';
+      ["downloadTeacher", "downloadCsv", "downloadAiSummary", "treeDraw", "downloadBeforeAfter", "downloadBeforeAfterOne", "downloadBeforeAfterZip", "downloadDataCheck", "downloadDataCheckZip", "downloadReview"].forEach(id => { if ($(id)) $(id).disabled = true; });
+      if ($("treePanel")) {
+        $("treePanel").style.display = "none";
+        $("treePanel").innerHTML = "";
+      }
+      $("dlSection").style.display = "none";
+      ["classSelect", "classForStudent", "classSelectTask", "classSelectCompare", "classForCheck", "classSelectTree", "classSelectReview"].forEach(id => { if ($(id)) $(id).innerHTML = "<option value=''>반 선택</option>"; });
+      if ($("downloadTask")) $("downloadTask").disabled = true;
+      $("studentSelect").innerHTML = "<option value=''>학생 선택</option>";
+      if ($("studentCheckSelect")) $("studentCheckSelect").innerHTML = "<option value=''>학생 선택</option>";
+      if ($("studentCompareSelect")) $("studentCompareSelect").innerHTML = "<option value=''>학생 선택</option>";
+      if ($("compareNameFilter")) $("compareNameFilter").value = "";
+      if ($("beforeExperimentStart")) $("beforeExperimentStart").value = "";
+      if ($("beforeExperimentEnd")) $("beforeExperimentEnd").value = "";
+      if ($("experimentStart")) $("experimentStart").value = "";
+      if ($("experimentEnd")) $("experimentEnd").value = "";
+      if ($("dataCheckStart")) $("dataCheckStart").value = "";
+      if ($("dataCheckEnd")) $("dataCheckEnd").value = "";
+    }
+
+    function downloadWorkbook(includeTeacher) {
+      if (!includeTeacher) {
+        const wb = buildClassVisualizationWorkbook("");
+        XLSX.writeFile(wb, "3차시_반별활동지_전체.xlsx");
+        return;
+      }
+      const workbook = XLSX.utils.book_new();
+      const sheets = {
+        "원자료_학생정보": state.rawStudents,
+        "원자료_카페인": state.rawCaffeine,
+        "원자료_수면": state.rawSleep,
+        "분석데이터": state.teacherAnalysis,
+        "오류확인": state.errors,
+        "전처리비교_전체": state.preprocessComparisonTeacher,
+        "변수기준": state.standards,
+        "날짜범위요약": state.dateRangeSummary,
+        "학생별요약": state.personalSummary,
+        "반별요약": state.classSummary,
+      };
+      Object.entries(sheets).forEach(([name, rows]) => {
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), name);
+      });
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+      XLSX.writeFile(workbook, "교사용_전체전처리결과_" + stamp + ".xlsx");
+    }
+
+    function treeModeLabel() {
+      return "0mg 미섭취 기록 포함";
+    }
+
+    function treeModeFileLabel() {
+      return "0mg미섭취포함_빈칸제외";
+    }
+
+    function treeModeDescription() {
+      return "0mg은 카페인을 마시지 않았다고 기록한 날이므로 비교에 포함하고, 카페인 총량이 빈칸인 날은 기록 누락 가능성이 있어 제외합니다.";
+    }
+
+    function treeModeStats(rows) {
+      const zero = rows.filter(row => Number(row.일일카페인총량_mg) === 0).length;
+      const intake = rows.filter(row => Number(row.일일카페인총량_mg) > 0).length;
+      return { zero, intake };
+    }
+
+    function treeRowsForTarget() {
+      const klass = $("classSelectTree")?.value || "";
+      const sourceRows = state.analysis
+        .filter(row => (!klass || String(row.반) === String(klass)) && row.수면양호여부 !== "");
+      const rows = sourceRows
+        .map(row => pickColumns(row, treeColumns));
+      return rows.filter(row => treeColumns.every(col => row[col] !== "" && row[col] !== null && row[col] !== undefined));
+    }
+
+    function treeTargetLabel() {
+      const klass = $("classSelectTree")?.value || "";
+      return klass ? `${klass}반` : "전체";
+    }
+
+    function cleanTreeRows() {
+      return treeRowsForTarget().map(row => {
+        const clean = {};
+        TREE_FEATURES.concat([TREE_TARGET]).forEach(name => {
+          clean[name] = Number(row[name]);
+        });
+        return clean;
+      }).filter(row => TREE_FEATURES.concat([TREE_TARGET]).every(name => Number.isFinite(row[name])));
+    }
+
+    function gini(rows) {
+      if (!rows.length) return 0;
+      const good = rows.filter(row => row[TREE_TARGET] === 1).length;
+      const bad = rows.length - good;
+      const pGood = good / rows.length;
+      const pBad = bad / rows.length;
+      return 1 - (pGood * pGood + pBad * pBad);
+    }
+
+    function thresholdsForFeature(rows, feature) {
+      if (feature === "일일카페인총량_mg") {
+        return [0, 50, 100, 150, 200].filter(threshold =>
+          rows.some(row => row[feature] <= threshold) && rows.some(row => row[feature] > threshold)
+        );
+      }
+      if ([
+        "오전카페인여부",
+        "오후카페인여부",
+        "저녁카페인여부",
+        "취침4시간이내카페인여부",
+        "취침6시간이내카페인여부",
+        "취침8시간이내카페인여부",
+        "취침12시간이내카페인여부"
+      ].includes(feature)) return [0.5];
+      const values = [...new Set(rows.map(row => row[feature]))].sort((a, b) => a - b);
+      const thresholds = [];
+      for (let i = 0; i < values.length - 1; i += 1) {
+        thresholds.push((values[i] + values[i + 1]) / 2);
+      }
+      return thresholds;
+    }
+
+    function classCounts(rows) {
+      const good = rows.filter(row => row[TREE_TARGET] === 1).length;
+      return { good, bad: rows.length - good };
+    }
+
+    function goodRate(rows) {
+      return rows.length ? classCounts(rows).good / rows.length : 0;
+    }
+
+    function hasStableClassCounts(rows) {
+      const { good, bad } = classCounts(rows);
+      return [good, bad].every(count => count === 0 || count >= TREE_MIN_CLASS_N);
+    }
+
+    function isCaffeineWithinFeature(feature) {
+      return /^취침(4|6|8|12)시간이내카페인여부$/.test(feature);
+    }
+
+    function isUnstableReverseCaffeineSplit(feature, left, right, gain) {
+      if (!isCaffeineWithinFeature(feature)) return false;
+      const closerCaffeineLooksBetter = goodRate(right) > goodRate(left);
+      return closerCaffeineLooksBetter && (right.length < 10 || gain < TREE_MIN_SECOND_GAIN);
+    }
+
+    function splitRejectReason(feature, left, right, gain, minGain, minChildN) {
+      if (left.length < minChildN || right.length < minChildN) return `자식 노드 표본 수가 ${minChildN}건 미만입니다.`;
+      if (!hasStableClassCounts(left) || !hasStableClassCounts(right)) return "한쪽 노드의 수면양호 또는 비양호 건수가 1~2건뿐입니다.";
+      if (gain < minGain) return "분기 전후의 지니 개선량이 작습니다.";
+      if (isUnstableReverseCaffeineSplit(feature, left, right, gain)) return "취침에 가까운 카페인 섭취가 수면양호로 보이는 약한 분기입니다.";
+      return "";
+    }
+
+    function bestSplit(rows, depth = 0) {
+      const parentGini = gini(rows);
+      const minGain = depth === 0 ? TREE_MIN_GAIN : TREE_MIN_SECOND_GAIN;
+      const minChildN = depth === 0 ? TREE_MIN_CHILD_N : TREE_MIN_SECOND_CHILD_N;
+      let best = null;
+      TREE_FEATURES.forEach((feature, featureIndex) => {
+        thresholdsForFeature(rows, feature).forEach(threshold => {
+          const left = rows.filter(row => row[feature] <= threshold);
+          const right = rows.filter(row => row[feature] > threshold);
+          const weightedGini = (left.length / rows.length) * gini(left) + (right.length / rows.length) * gini(right);
+          const gain = parentGini - weightedGini;
+          if (splitRejectReason(feature, left, right, gain, minGain, minChildN)) return;
+          const candidate = { feature, featureIndex, threshold, left, right, gain, weightedGini };
+          const isBetter = !best
+            || weightedGini < best.weightedGini
+            || (weightedGini === best.weightedGini && featureIndex < best.featureIndex)
+            || (weightedGini === best.weightedGini && featureIndex === best.featureIndex && threshold < best.threshold);
+          if (isBetter) best = candidate;
+        });
+      });
+      return best;
+    }
+
+    function bestVisualSplit(rows, minLeafN = VISUAL_TREE_MIN_LEAF_N) {
+      const parentGini = gini(rows);
+      let best = null;
+      TREE_FEATURES.forEach((feature, featureIndex) => {
+        thresholdsForFeature(rows, feature).forEach(threshold => {
+          const left = rows.filter(row => row[feature] <= threshold);
+          const right = rows.filter(row => row[feature] > threshold);
+          if (left.length < minLeafN || right.length < minLeafN) return;
+          const weightedGini = (left.length / rows.length) * gini(left) + (right.length / rows.length) * gini(right);
+          const gain = parentGini - weightedGini;
+          if (gain <= 0) return;
+          const strictReject = splitRejectReason(feature, left, right, gain, TREE_MIN_GAIN, TREE_MIN_CHILD_N);
+          const candidate = { feature, featureIndex, threshold, left, right, gain, weightedGini, strictReject };
+          const isBetter = !best
+            || weightedGini < best.weightedGini
+            || (weightedGini === best.weightedGini && featureIndex < best.featureIndex)
+            || (weightedGini === best.weightedGini && featureIndex === best.featureIndex && threshold < best.threshold);
+          if (isBetter) best = candidate;
+        });
+      });
+      return best;
+    }
+
+    function makeLeaf(rows, stopReason = "") {
+      const { good, bad } = classCounts(rows);
+      return { leaf: true, className: good > bad ? "수면 양호" : "수면 비양호", n: rows.length, good, bad, stopReason };
+    }
+
+    function isPure(rows) {
+      return rows.every(row => row[TREE_TARGET] === rows[0][TREE_TARGET]);
+    }
+
+    function buildTree(rows, depth = 0, rootRows = rows) {
+      if (!rows.length) return null;
+      if (isPure(rows)) return makeLeaf(rows, "한쪽 결과만 있어 더 나누지 않았습니다.");
+      if (depth >= TREE_MAX_DEPTH) return makeLeaf(rows, "학생 활동용 최대 깊이에 도달했습니다.");
+      const split = bestSplit(rows, depth);
+      if (!split) return makeLeaf(rows, depth === 0 ? "안정적인 첫 질문이 발견되지 않았습니다." : "안정적인 두 번째 질문이 발견되지 않았습니다.");
+      const { good, bad } = classCounts(rows);
+      return {
+        leaf: false,
+        feature: split.feature,
+        threshold: split.threshold,
+        n: rows.length,
+        good,
+        bad,
+        gain: split.gain,
+        no: buildTree(split.left, depth + 1, rootRows),
+        yes: buildTree(split.right, depth + 1, rootRows),
+      };
+    }
+
+    function buildVisualFallbackTree(rows, depth = 0) {
+      if (!rows.length) return null;
+      if (isPure(rows)) return makeLeaf(rows, "한쪽 결과만 있어 더 나누지 않았습니다.");
+      if (depth >= VISUAL_TREE_MAX_DEPTH) return makeLeaf(rows, "관찰용 최대 깊이에 도달했습니다.");
+      const split = bestVisualSplit(rows);
+      if (!split) return depth === 0 ? null : makeLeaf(rows, "더 나눌 만한 관찰용 분기가 없습니다.");
+      const { good, bad } = classCounts(rows);
+      return {
+        leaf: false,
+        visualFallback: true,
+        feature: split.feature,
+        threshold: split.threshold,
+        n: rows.length,
+        good,
+        bad,
+        gain: split.gain,
+        warning: split.strictReject || "엄격한 안정성 기준은 통과하지 못했지만, 현재 데이터에서 가장 크게 갈리는 방향입니다.",
+        no: buildVisualFallbackTree(split.left, depth + 1) || makeLeaf(split.left, "관찰용 분기입니다."),
+        yes: buildVisualFallbackTree(split.right, depth + 1) || makeLeaf(split.right, "관찰용 분기입니다."),
+      };
+    }
+
+    function nodeQuestion(feature, thr) {
+      switch (feature) {
+        case "일일카페인총량_mg": return `하루 카페인을 ${Math.round(thr)}mg 넘게 마셨나?`;
+        case "카페인섭취횟수": return `카페인을 ${Math.ceil(thr)}회 이상 마셨나?`;
+        case "카페인섭취시간대수": return `카페인을 하루 ${Math.ceil(thr)}개 시간대 이상에서 마셨나?`;
+        case "오전카페인여부": return "오전에 카페인을 마셨나?";
+        case "오후카페인여부": return "오후에 카페인을 마셨나?";
+        case "저녁카페인여부": return "저녁에 카페인을 마셨나?";
+        case "취침4시간이내카페인여부": return "취침 4시간 이내에 카페인을 마셨나요?";
+        case "취침6시간이내카페인여부": return "취침 6시간 이내에 카페인을 마셨나요?";
+        case "취침8시간이내카페인여부": return "취침 8시간 이내에 카페인을 마셨나요?";
+        case "취침12시간이내카페인여부": return "취침 12시간 이내에 카페인을 마셨나요?";
+        case "취침전스마트폰_점수": return `취침 전 스마트폰 점수가 ${Math.ceil(thr)}점 이상인가?`;
+        case "신체활동_점수": return `신체활동 점수가 ${Math.ceil(thr)}점 이상인가?`;
+        default: return `${feature} > ${thr}?`;
+      }
+    }
+
+    function formatPercent(value) {
+      return `${Math.round(value * 100)}%`;
+    }
+
+    function nodeGoodRate(node) {
+      return node?.n ? (node.good || 0) / node.n : 0;
+    }
+
+    function branchLabel(node, isYesBranch) {
+      if (!node || node.leaf) return "";
+      const question = nodeQuestion(node.feature, node.threshold);
+      if (node.feature === "일일카페인총량_mg") {
+        return isYesBranch
+          ? `하루 카페인 ${Math.round(node.threshold)}mg 초과`
+          : `하루 카페인 ${Math.round(node.threshold)}mg 이하`;
+      }
+      if (["카페인섭취횟수", "카페인섭취시간대수", "취침전스마트폰_점수", "신체활동_점수"].includes(node.feature)) {
+        const cut = Math.ceil(node.threshold);
+        const unit = node.feature === "카페인섭취횟수" ? "회"
+          : node.feature === "카페인섭취시간대수" ? "개 시간대"
+            : "점";
+        return isYesBranch ? `${cut}${unit} 이상` : `${cut}${unit} 미만`;
+      }
+      return isYesBranch ? question.replace("?", "") : `${question.replace("?", "")} 아님`;
+    }
+
+    function splitCautionReason(tree, rows) {
+      const { good, bad } = classCounts(rows);
+      if (tree?.visualFallback) return `주의: ${tree.warning || "엄격한 안정성 기준은 통과하지 못했지만, 치우친 방향을 관찰용으로 표시했습니다."}`;
+      if (rows.length < 20) return "주의: 전체 표본 수가 적어 결과가 우연히 달라질 수 있습니다.";
+      if (good < MIN_GOOD_LEAF || bad < MIN_GOOD_LEAF) return "주의: 한쪽 결과가 너무 적어 규칙이 한쪽으로 치우칠 수 있습니다.";
+      if (treeContainsStoppedSecondQuestion(tree)) return "주의: 첫 번째 질문은 비교적 선명하지만, 두 번째 질문은 일부 가지의 표본 수가 적거나 구분이 좋아지는 정도가 충분하지 않아 조심해서 해석해야 합니다.";
+      return "건수와 비율을 함께 보세요. 비율 차이가 커 보여도 표본 수가 적으면 우연일 수 있습니다.";
+    }
+
+    function naturalRuleLines(tree) {
+      if (!tree || tree.leaf) return [];
+      return [
+        { label: branchLabel(tree, true), node: tree.yes, direction: "예" },
+        { label: branchLabel(tree, false), node: tree.no, direction: "아니오" },
+      ].filter(item => item.node).map((item, index) => {
+        const good = item.node.good || 0;
+        const bad = item.node.bad || 0;
+        const goodRateText = formatPercent(nodeGoodRate(item.node));
+        const badRateText = formatPercent(item.node.n ? bad / item.node.n : 0);
+        const mainResult = good >= bad ? `수면양호 비율은 약 ${goodRateText}` : `수면비양호 비율은 약 ${badRateText}`;
+        return `${index + 1}. ${item.label} 기록은 총 ${item.node.n}건입니다. 그중 수면양호는 ${good}건, 수면비양호는 ${bad}건입니다. 이 데이터에서는 해당 집단의 ${mainResult}입니다.`;
+      });
+    }
+
+    function naturalRulesHtml(tree) {
+      const lines = naturalRuleLines(tree);
+      if (!lines.length) return "";
+      return `
+        <div style="margin-top:12px; padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:#f8fafc; font-size:12px; line-height:1.65; color:var(--ink);">
+          <div style="font-weight:800; margin-bottom:6px;">${tree.visualFallback ? "AI가 표시한 관찰용 치우침" : "AI가 찾은 임시 규칙"}</div>
+          ${lines.map(line => `<div>${escapeHtml(line)}</div>`).join("")}
+          <div style="margin-top:8px; color:var(--muted);">주의: 이 결과는 원인을 확정하는 정답표가 아니라 현재 데이터에서 보이는 임시 패턴입니다.</div>
+        </div>`;
+    }
+
+    function treeSummaryRows(tree, rows) {
+      const { good, bad } = classCounts(rows);
+      const summary = [
+        { 항목: "전체 표본 수", 내용: rows.length },
+        { 항목: "수면양호 건수", 내용: good },
+        { 항목: "수면비양호 건수", 내용: bad },
+        { 항목: "주의 안내", 내용: tree ? splitCautionReason(tree, rows) : "안정적인 질문을 만들 만큼 규칙이 뚜렷하지 않습니다." },
+      ];
+      if (tree && !tree.leaf) {
+        summary.push(
+          { 항목: "트리 유형", 내용: tree.visualFallback ? "관찰용 치우침 트리" : "안정성 기준 통과 트리" },
+          { 항목: "첫 질문", 내용: nodeQuestion(tree.feature, tree.threshold) },
+          { 항목: "첫 질문 - 예 집단", 내용: `${tree.yes.n}건 / 수면양호 ${tree.yes.good}건(${formatPercent(nodeGoodRate(tree.yes))}) / 비양호 ${tree.yes.bad}건` },
+          { 항목: "첫 질문 - 아니오 집단", 내용: `${tree.no.n}건 / 수면양호 ${tree.no.good}건(${formatPercent(nodeGoodRate(tree.no))}) / 비양호 ${tree.no.bad}건` },
+          { 항목: "첫 질문 구분이 좋아진 정도", 내용: round(tree.gain, 3) }
+        );
+        const secondQuestions = [tree.yes, tree.no].filter(node => node && !node.leaf);
+        if (secondQuestions.length) {
+          secondQuestions.forEach((node, index) => {
+            summary.push(
+              { 항목: `두 번째 질문 ${index + 1}`, 내용: nodeQuestion(node.feature, node.threshold) },
+              { 항목: `두 번째 질문 ${index + 1} - 예 집단`, 내용: `${node.yes.n}건 / 수면양호 ${node.yes.good}건(${formatPercent(nodeGoodRate(node.yes))}) / 비양호 ${node.yes.bad}건` },
+              { 항목: `두 번째 질문 ${index + 1} - 아니오 집단`, 내용: `${node.no.n}건 / 수면양호 ${node.no.good}건(${formatPercent(nodeGoodRate(node.no))}) / 비양호 ${node.no.bad}건` },
+              { 항목: `두 번째 질문 ${index + 1} 구분이 좋아진 정도`, 내용: round(node.gain, 3) }
+            );
+          });
+        } else {
+          summary.push({ 항목: "두 번째 질문", 내용: "안정적인 두 번째 질문이 없어 만들지 않았습니다. 첫 질문 중심으로 해석하세요." });
+        }
+      } else {
+        summary.push({ 항목: "첫 질문", 내용: "안정적인 첫 질문이 발견되지 않았습니다." });
+      }
+      naturalRuleLines(tree).forEach((line, index) => {
+        summary.push({ 항목: `AI가 찾은 임시 규칙 ${index + 1}`, 내용: line });
+      });
+      return summary;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[ch]));
+    }
+
+    function renderTreeSvg(root) {
+      const nodes = [];
+      const edges = [];
+      let leafIndex = 0;
+      function layout(node, depth, parent = null, branch = "") {
+        node.depth = depth;
+        if (node.leaf) {
+          node.x = leafIndex * 230 + 120;
+          leafIndex += 1;
+        } else {
+          layout(node.yes, depth + 1, node, "예");
+          layout(node.no, depth + 1, node, "아니오");
+          node.x = (node.no.x + node.yes.x) / 2;
+        }
+        node.y = depth * 140 + 30;
+        nodes.push(node);
+        if (parent) edges.push({ from: parent, to: node, label: branch });
+      }
+      layout(root, 0);
+      const maxX = Math.max(...nodes.map(node => node.x));
+      const width = Math.max(760, maxX + 140);
+      const height = Math.max(...nodes.map(node => node.y)) + 130;
+      const nodeMarkup = nodes.map(node => {
+        const boxW = node.leaf ? 190 : 280;
+        const boxH = node.leaf ? 112 : 92;
+        const x = node.x - boxW / 2;
+        const y = node.y;
+        const isGood = node.className === "수면 양호";
+        const fill = node.leaf ? (isGood ? "#ecfdf3" : "#fffaeb") : "#eef9fb";
+        const stroke = node.leaf ? (isGood ? "var(--good)" : "var(--warn)") : "var(--brand)";
+        const color = node.leaf ? (isGood ? "var(--good)" : "var(--warn)") : "var(--ink)";
+        const unstable = node.n < 10 || (node.good > 0 && node.good < TREE_MIN_CLASS_N) || (node.bad > 0 && node.bad < TREE_MIN_CLASS_N);
+        const majClass = isGood ? "양호" : "비양호";
+        const majCount = isGood ? (node.good ?? 0) : (node.bad ?? 0);
+        const pureLeaf = (node.good ?? 0) === 0 || (node.bad ?? 0) === 0;
+        const title = node.leaf
+          ? (pureLeaf
+              ? `${isGood ? "😴 수면 양호" : "⚠ 수면 비양호"} · ${node.n}건 전부`
+              : `${isGood ? "😴 양호로 분류" : "⚠ 비양호로 분류"} · ${node.n}건 중 ${majClass} ${majCount}`)
+          : nodeQuestion(node.feature, node.threshold);
+        const detail = `양호 ${node.good ?? 0}건 / 비양호 ${node.bad ?? 0}건${unstable ? " · 주의" : ""}`;
+        const gainText = node.leaf ? "" : `개선량 ${node.gain.toFixed(2)}`;
+        const branchText = node.leaf ? "" : `예 ${node.yes.n}건·양호 ${formatPercent(nodeGoodRate(node.yes))} / 아니오 ${node.no.n}건·양호 ${formatPercent(nodeGoodRate(node.no))}`;
+        const stopText = node.leaf && node.stopReason ? node.stopReason : "";
+        return `
+          <g>
+            <rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="2"></rect>
+            <foreignObject x="${x + 12}" y="${y + 9}" width="${boxW - 24}" height="${boxH - 18}">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:${color}; line-height:1.35; word-break:keep-all; overflow-wrap:anywhere;">
+                <div style="font-weight:800; font-size:13px;">${escapeHtml(title)}</div>
+                <div style="font-weight:700; font-size:11px; margin-top:4px; color:var(--muted);">${escapeHtml(detail)}</div>
+                ${gainText ? `<div style="font-weight:700; font-size:10px; margin-top:2px; color:var(--muted);">${escapeHtml(gainText)}</div>` : ""}
+                ${branchText ? `<div style="font-weight:700; font-size:10px; margin-top:2px; color:var(--muted);">${escapeHtml(branchText)}</div>` : ""}
+                ${stopText ? `<div style="font-weight:700; font-size:10px; margin-top:2px; color:var(--muted);">${escapeHtml(stopText)}</div>` : ""}
+              </div>
+            </foreignObject>
+          </g>`;
+      }).join("");
+      const edgeMarkup = edges.map(edge => {
+        const fromY = edge.from.y + (edge.from.leaf ? 96 : 92);
+        const toY = edge.to.y;
+        const midY = (fromY + toY) / 2;
+        const labelX = (edge.from.x + edge.to.x) / 2;
+        const labelY = midY - 6;
+        return `
+          <polyline points="${edge.from.x},${fromY} ${edge.from.x},${midY} ${edge.to.x},${midY} ${edge.to.x},${toY}" fill="none" stroke="var(--line)" stroke-width="2"></polyline>
+          <text x="${labelX}" y="${labelY}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="700">${edge.label}</text>`;
+      }).join("");
+      return `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="AI가 찾은 임시 규칙 나무">
+          ${edgeMarkup}
+          ${nodeMarkup}
+        </svg>`;
+    }
+
+    function treePanelMessage(message) {
+      return `
+        <div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; color:var(--ink);">
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">화면을 캡처하거나 그대로 투사해 학생이 옮겨 적게 하세요.</div>
+          <strong>${escapeHtml(message)}</strong>
+          <div style="font-size:11px; color:var(--muted); margin-top:8px;">이 트리는 원인을 확정하는 정답표가 아니라, 현재 데이터에서 보이는 임시 패턴입니다.</div>
+        </div>`;
+    }
+
+    function treeAlarmBox(message) {
+      return `<div style="border:1px solid #f3c98b; background:#fffaeb; border-radius:8px; padding:12px 14px; margin-bottom:10px; font-size:13px; line-height:1.55; color:#7a4f12;">
+        <b style="color:var(--warn);">알림</b> &nbsp;${escapeHtml(message)}
+      </div>`;
+    }
+
+    function treeContainsStoppedSecondQuestion(node, depth = 0) {
+      if (!node) return false;
+      if (node.leaf) return depth > 0 && String(node.stopReason || "").includes("두 번째 질문");
+      return treeContainsStoppedSecondQuestion(node.no, depth + 1) || treeContainsStoppedSecondQuestion(node.yes, depth + 1);
+    }
+
+    function treeFinalNotice(tree, rows) {
+      const { good, bad } = classCounts(rows);
+      const modeStats = treeModeStats(rows);
+      const cautious = tree?.visualFallback || rows.length < 20 || good < MIN_GOOD_LEAF || bad < MIN_GOOD_LEAF || treeContainsStoppedSecondQuestion(tree);
+      return `
+        <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:10px; font-size:12px; line-height:1.6; color:var(--muted);">
+          <div><b style="color:var(--ink);">신뢰도 안내</b> 전체 표본 ${rows.length}건 · 수면양호 ${good}건 / 비양호 ${bad}건 · ${cautious ? '<b style="color:var(--warn);">주의</b>' : '<b style="color:var(--good);">비교적 안정</b>'}</div>
+          <div style="margin-top:4px;">${escapeHtml(treeModeLabel())}: 0mg 기록 ${modeStats.zero}건 · 1mg 이상 섭취 기록 ${modeStats.intake}건</div>
+          <div style="margin-top:4px;">${escapeHtml(treeModeDescription())}</div>
+          <div style="margin-top:6px; color:${cautious ? '#7a4f12' : 'var(--muted)'};">${escapeHtml(splitCautionReason(tree, rows))}</div>
+          ${treeContainsStoppedSecondQuestion(tree) ? `<div style="margin-top:6px; color:#7a4f12;">이번 데이터에서는 첫 질문 하나만으로도 양호/비양호가 크게 갈렸거나, 두 번째 질문을 만들 만큼 안정적인 규칙이 발견되지 않았어요. 질문이 1개인 것은 오류가 아닙니다. 0mg은 미섭취 기록으로 포함하고, 빈칸은 기록 누락 가능성이 있어 제외한 상태에서 해석하세요.</div>` : ""}
+          <div style="margin-top:6px;">이 트리는 원인을 확정하는 정답표가 아니라, 현재 데이터에서 보이는 임시 패턴입니다.</div>
+          <div style="margin-top:4px;">건수와 비율을 함께 보세요. 비율 차이가 커 보여도 표본 수가 적으면 우연일 수 있습니다.</div>
+        </div>`;
+    }
+
+    function drawAiTree() {
+      const panel = $("treePanel");
+      const rows = cleanTreeRows();
+      const modeStats = treeModeStats(rows);
+      panel.style.display = "block";
+      const goodCount = rows.filter(row => row[TREE_TARGET] === 1).length;
+      let alarmHtml = "";
+      if (goodCount === 0) {
+        alarmHtml = treeAlarmBox("이 반에서는 '수면 양호'로 판정된 기록이 없습니다(0건). 수면 기준(5개 항목 중 4개)은 그대로 두고, '우리 반은 수면양호 기록이 적다'는 점도 학생들과 함께 해석해 보세요.");
+      } else if (goodCount < MIN_GOOD_LEAF) {
+        alarmHtml = treeAlarmBox(`이 반의 '수면 양호' 기록은 ${goodCount}건뿐이라 트리가 한쪽으로 치우칠 수 있어요. 기준을 바꾸지 말고, '양호 기록이 적다'는 점도 함께 해석하세요.`);
+      }
+      if (rows.length < 10) {
+        panel.innerHTML = alarmHtml + treePanelMessage("트리를 그리려면 유효한 기록이 10개 이상 필요해요.");
+        return;
+      }
+      const tree = buildTree(rows, 0);
+      const visualTree = (!tree || tree.leaf) ? buildVisualFallbackTree(rows) : null;
+      const displayTree = visualTree || tree;
+      if (!displayTree || displayTree.leaf) {
+        panel.innerHTML = alarmHtml + treePanelMessage("이 데이터에서는 질문을 만들 만큼 안정적인 규칙이 발견되지 않았어요. 특히 일부 분기는 표본 수가 적어 우연일 가능성이 큽니다. 따라서 이번 반 데이터에서는 카페인 섭취횟수 같은 기본 지표만 참고하고, 나머지는 생활 맥락과 함께 해석해 봅시다.");
+        return;
+      }
+      const fallbackNotice = displayTree.visualFallback
+        ? `<div style="border:1px solid #f3c98b; background:#fffaeb; border-radius:8px; padding:10px 12px; margin-bottom:10px; color:#7a4f12; font-size:12px; line-height:1.55;"><b>관찰용 표시</b> 엄격한 안정성 기준을 통과한 규칙은 아니지만, 학생들에게 어느 쪽으로 데이터가 치우쳐 있는지 보여주기 위해 가장 크게 갈리는 분기를 표시했습니다. 관찰용 트리는 최대 깊이 ${VISUAL_TREE_MAX_DEPTH}, 잎 최소 ${VISUAL_TREE_MIN_LEAF_N}건 기준으로 표시하며, 원인 확정이 아니라 토의 자료로 사용하세요.</div>`
+        : "";
+      panel.innerHTML = alarmHtml + `
+        <div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff;">
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">화면을 캡처하거나 그대로 투사해 학생이 옮겨 적게 하세요.</div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">※ 학생은 질문 상자와 양호·비양호 결과만 옮겨 적어요. 작은 숫자(개선량·비율 등)는 선생님 설명용이에요.</div>
+          ${fallbackNotice}
+          <div style="font-weight:800; color:var(--ink); margin-bottom:6px;">${displayTree.visualFallback ? "AI가 표시한 관찰용 치우침 나무" : "AI가 찾은 임시 규칙 나무"} — ${escapeHtml(treeTargetLabel())} · ${escapeHtml(treeModeLabel())} · 표본 ${rows.length}건</div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">${escapeHtml(treeModeDescription())} 0mg 기록 ${modeStats.zero}건, 1mg 이상 섭취 기록 ${modeStats.intake}건.</div>
+          ${renderTreeSvg(displayTree)}
+          ${naturalRulesHtml(displayTree)}
+          ${treeFinalNotice(displayTree, rows)}
+        </div>`;
+    }
+
+    function downloadCsv() {
+      const rows = treeRowsForTarget();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const csv = "\ufeff" + XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `4차시_의사결정트리_${treeTargetLabel()}_${treeModeFileLabel()}_학습용.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function downloadAiSummary() {
+      const inputs = treeColumns.filter(name => name !== "수면양호여부");
+      const rows = treeRowsForTarget();
+      const cleanRows = cleanTreeRows();
+      const strictTree = cleanRows.length >= 10 ? buildTree(cleanRows, 0) : null;
+      const tree = (strictTree && !strictTree.leaf) ? strictTree : (cleanRows.length >= 10 ? buildVisualFallbackTree(cleanRows) : null);
+      const klass = $("classSelectTree")?.value || "";
+      const modeStats = treeModeStats(cleanRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "이 파일은 4차시 AI 의사결정트리 해석 활동용입니다.",
+        "1. AI가 어떤 변수를 사용했는지 확인합니다.",
+        "2. AI가 이번 데이터에서 트리를 나눌 때 사용한 변수를 확인합니다.",
+        "3. AI 결과가 맞을 수 있는 이유와 틀릴 수 있는 이유를 각각 적습니다.",
+        "4. 최종적으로 나의 수면에 영향을 준 요인을 선택합니다.",
+        "주의: 이 트리는 원인을 확정하는 정답표가 아니라 현재 데이터에서 보이는 임시 패턴입니다.",
+      ])), "활동안내");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+        { 항목: "분석 대상", 내용: klass ? `${klass}반` : "전체" },
+        { 항목: "카페인 0mg 처리", 내용: "카페인을 마시지 않았다고 기록한 날이므로 분석에 포함" },
+        { 항목: "카페인 빈칸 처리", 내용: "마시지 않은 날로 단정하지 않고 기록 누락 가능성이 있어 분석에서 제외" },
+        { 항목: "분석 대상 기록 수", 내용: rows.length },
+        { 항목: "0mg 미섭취 기록 수", 내용: modeStats.zero },
+        { 항목: "1mg 이상 실제 섭취 기록 수", 내용: modeStats.intake },
+        { 항목: "목표 변수", 내용: "수면양호여부" },
+        { 항목: "사용한 입력 변수", 내용: inputs.join(", ") },
+        { 항목: "수면양호 기준", 내용: "수면시간·컨디션을 필수로 포함하고, 잠복기·중도각성·낮졸음집중력을 함께 고려한 5개 항목 판정" },
+        { 항목: "데이터 한계", 내용: "선택지 외 값, 날짜 오류, 결측이 있는 기록은 AI 학습용 CSV에서 제외될 수 있음" },
+        { 항목: "해석 주의", 내용: "AI 결과는 원인 확정이 아니라 패턴 탐색 결과이므로 건수와 비율, 개인 생활 맥락을 함께 해석해야 함" },
+      ].concat(treeSummaryRows(tree, cleanRows))), "AI분석_요약");
+      const variableRows = inputs.concat(["수면양호여부"]).map(name => {
+        const desc = state.variableDescriptions.find(row => row.변수명 === name) || {};
+        return {
+          변수명: name,
+          의미: desc.의미 || "",
+          "값의 범위": desc["값 설명"] || "",
+          "해석 방법": desc["점수 방향"] || "",
+          "주의할 점": name === "수면양호여부" ? "목표값이므로 입력 변수로 해석하지 않습니다." : "이번 데이터에서 트리를 나눌 때 참고한 생활습관 변수입니다.",
+        };
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(variableRows), "주요변수");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(questionSheet([
+        "AI가 첫 번째 질문으로 이 기준을 선택한 이유는 무엇일까요?",
+        "두 집단의 수면양호율은 각각 몇 %인가요?",
+        "이 결과를 원인이라고 단정할 수 없는 이유는 무엇인가요?",
+        "표본 수가 적은 가지가 있다면 어디인가요?",
+        "나의 생활습관과 비교했을 때 이 규칙은 맞는 것 같나요?",
+        "추가로 더 모으면 좋을 데이터는 무엇인가요?",
+      ])), "해석질문");
+      XLSX.writeFile(wb, `4차시_의사결정트리_${treeTargetLabel()}_${treeModeFileLabel()}_해석요약표.xlsx`);
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      next.setDate(next.getDate() + days);
+      return next;
+    }
+
+    function inDateRange(value, start, end) {
+      const dt = parseDateFlexible(value);
+      if (!dt) return false;
+      const time = dt.getTime();
+      return time >= start.getTime() && time <= end.getTime();
+    }
+
+    function avgNumber(rows, key) {
+      const nums = rows.map(row => Number(row[key])).filter(n => Number.isFinite(n));
+      return nums.length ? round(nums.reduce((a, b) => a + b, 0) / nums.length, 2) : "";
+    }
+
+    function countFlag(rows, key) {
+      return rows.reduce((sum, row) => sum + (Number(row[key]) ? 1 : 0), 0);
+    }
+
+    function safeFileName(str) {
+      return String(str || "").replace(/[\\/:*?"<>|]/g, "_");
+    }
+
+    function getBeforeAfterPeriod() {
+      const preStart = parseDateFlexible($("beforeExperimentStart").value);
+      const preEnd = parseDateFlexible($("beforeExperimentEnd").value);
+      const start = parseDateFlexible($("experimentStart").value);
+      const end = parseDateFlexible($("experimentEnd").value);
+      if (!preStart || !preEnd || !start || !end) {
+        alert("실험 전 시작일/종료일과 행동 실험 시작일/종료일을 모두 입력해주세요.");
+        return null;
+      }
+      if (preEnd < preStart) {
+        alert("실험 전 종료일은 시작일보다 빠를 수 없습니다.");
+        return null;
+      }
+      if (end < start) { alert("행동 실험 종료일은 시작일보다 빠를 수 없습니다."); return null; }
+      return { preStart, preEnd, start, end };
+    }
+
+    function rowsForBeforeAfterSelection() {
+      const klass = $("classSelectCompare")?.value || "";
+      const options = compareStudentOptions();
+      const keyword = ($("compareNameFilter")?.value || "").trim();
+      if (keyword && options.length === 0) return [];
+      const allowedStudents = new Set(options.map(s => s.익명ID));
+      return (state?.analysis || []).filter(row => {
+        if (klass && String(row.반) !== String(klass)) return false;
+        if (allowedStudents.size && !allowedStudents.has(row.익명ID)) return false;
+        return true;
+      });
+    }
+
+    function groupRowsByStudent(rows) {
+      const grouped = new Map();
+      rows.forEach(row => {
+        const key = row.익명ID || row._학번 || `${row.반}-${row.번호}-${row.이름}`;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(row);
+      });
+      return grouped;
+    }
+
+    function beforeAfterSummaryRow(info, before, during) {
+        const beforeSleep = avgNumber(before, "수면시간_h");
+        const duringSleep = avgNumber(during, "수면시간_h");
+        const beforeCond = avgNumber(before, "수면컨디션_점수");
+        const duringCond = avgNumber(during, "수면컨디션_점수");
+        const beforeMorning = countFlag(before, "오전카페인여부");
+        const duringMorning = countFlag(during, "오전카페인여부");
+        const beforeAfternoon = countFlag(before, "오후카페인여부");
+        const duringAfternoon = countFlag(during, "오후카페인여부");
+        const beforeZeroCaffeine = before.filter(row => Number(row.일일카페인총량_mg) === 0).length;
+        const duringZeroCaffeine = during.filter(row => Number(row.일일카페인총량_mg) === 0).length;
+        const beforeRealCaffeine = before.filter(row => Number(row.일일카페인총량_mg) > 0).length;
+        const duringRealCaffeine = during.filter(row => Number(row.일일카페인총량_mg) > 0).length;
+        const beforeAvgCaffeine = avgNumber(before, "일일카페인총량_mg");
+        const duringAvgCaffeine = avgNumber(during, "일일카페인총량_mg");
+        const beforePhone = before.filter(row => Number(row.취침전스마트폰_점수) >= 4).length;
+        const duringPhone = during.filter(row => Number(row.취침전스마트폰_점수) >= 4).length;
+        return {
+          반: info.반 || "",
+          번호: info.번호 || "",
+          성명: info.이름 || "",
+          전체학번: info._학번 || "",
+          "실험 전 기록 수": before.length,
+          "실험 기간 기록 수": during.length,
+          "실험 전 평균 수면시간": beforeSleep,
+          "실험 기간 평균 수면시간": duringSleep,
+          "수면시간 변화": beforeSleep === "" || duringSleep === "" ? "" : round(duringSleep - beforeSleep, 2),
+          "실험 전 평균 컨디션 점수": beforeCond,
+          "실험 기간 평균 컨디션 점수": duringCond,
+          "컨디션 점수 변화": beforeCond === "" || duringCond === "" ? "" : round(duringCond - beforeCond, 2),
+          "실험 전 오전 카페인 횟수": beforeMorning,
+          "실험 기간 오전 카페인 횟수": duringMorning,
+          "오전 카페인 변화": duringMorning - beforeMorning,
+          "실험 전 오후 카페인 횟수": beforeAfternoon,
+          "실험 기간 오후 카페인 횟수": duringAfternoon,
+          "오후 카페인 변화": duringAfternoon - beforeAfternoon,
+          "실험 전 카페인 0mg 기록 일수": beforeZeroCaffeine,
+          "실험 기간 카페인 0mg 기록 일수": duringZeroCaffeine,
+          "0mg 기록 일수 변화": duringZeroCaffeine - beforeZeroCaffeine,
+          "실험 전 카페인 1mg 이상 섭취 일수": beforeRealCaffeine,
+          "실험 기간 카페인 1mg 이상 섭취 일수": duringRealCaffeine,
+          "카페인 섭취 일수 변화": duringRealCaffeine - beforeRealCaffeine,
+          "실험 전 평균 카페인총량_mg": beforeAvgCaffeine,
+          "실험 기간 평균 카페인총량_mg": duringAvgCaffeine,
+          "평균 카페인총량 변화_mg": beforeAvgCaffeine === "" || duringAvgCaffeine === "" ? "" : round(duringAvgCaffeine - beforeAvgCaffeine, 2),
+          "실험 전 취침전 스마트폰 60분 이상 일수": beforePhone,
+          "실험 기간 취침전 스마트폰 60분 이상 일수": duringPhone,
+          "스마트폰 사용 변화": duringPhone - beforePhone,
+        };
+    }
+
+    function beforeAfterWorkbook(summary, detailRows, period) {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oneColumnSheet([
+        "이 파일은 6차시 행동 실험 전후 비교 활동용입니다.",
+        `실험 전 기간: ${dateKey(period.preStart)} ~ ${dateKey(period.preEnd)}`,
+        `실험 기간: ${dateKey(period.start)} ~ ${dateKey(period.end)}`,
+        "1. 전후비교_요약 시트에서 실험 전과 실험 기간의 변화를 확인합니다.",
+        "2. 수면시간, 컨디션, 카페인 섭취, 스마트폰 사용 중 변화가 큰 항목을 찾습니다.",
+        "3. 변화가 내 행동 실험 때문인지, 다른 요인 때문일 수도 있는지 생각합니다.",
+        "4. 앞으로 유지할 행동 1가지를 정합니다.",
+        "0mg은 카페인을 마시지 않았다는 명시적 기록이므로 행동 변화의 근거로 사용할 수 있습니다.",
+        "빈칸은 미섭취가 아니라 기록 누락 가능성이 있으므로 전후 비교에서 따로 확인해야 합니다.",
+      ])), "활동안내");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "전후비교_요약");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "그래프용");
+      if (detailRows?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), "기간별_원자료");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(questionSheet([
+        "실험 전과 실험 기간에 가장 크게 달라진 항목은 무엇인가요?",
+        "그 변화가 행동 실험 때문이라고 볼 근거는 무엇인가요?",
+        "다른 요인이 영향을 주었을 가능성은 무엇인가요?",
+        "앞으로 유지할 행동 1가지를 적어보세요.",
+      ])), "성찰질문");
+      return wb;
+    }
+
+    function buildBeforeAfterEntries(rows, period) {
+      return [...groupRowsByStudent(rows).entries()].map(([sid, studentRows]) => {
+        const info = studentRows[0] || {};
+        const before = studentRows.filter(row => inDateRange(row.분석일, period.preStart, period.preEnd));
+        const during = studentRows.filter(row => inDateRange(row.분석일, period.start, period.end));
+        const detailRows = before.map(row => ({ 구분: "실험 전", ...row })).concat(during.map(row => ({ 구분: "실험 기간", ...row })));
+        return { sid, info, before, during, detailRows, summary: beforeAfterSummaryRow(info, before, during) };
+      });
+    }
+
+    function downloadBeforeAfter() {
+      const period = getBeforeAfterPeriod();
+      if (!period) return;
+      const rows = rowsForBeforeAfterSelection();
+      const entries = buildBeforeAfterEntries(rows, period);
+      if (!entries.length) { alert("선택한 조건에 맞는 전후 비교 데이터가 없습니다."); return; }
+      const summary = entries.map(entry => entry.summary);
+      const detailRows = entries.flatMap(entry => entry.detailRows);
+      const wb = beforeAfterWorkbook(summary, detailRows, period);
+      const klass = $("classSelectCompare").value;
+      const suffix = klass ? `${klass}반` : "전체";
+      const namePart = ($("compareNameFilter")?.value || "").trim();
+      XLSX.writeFile(wb, `6차시_전후비교자료_${suffix}${namePart ? "_" + safeFileName(namePart) : ""}.xlsx`);
+    }
+
+    function downloadBeforeAfterOne() {
+      const period = getBeforeAfterPeriod();
+      if (!period) return;
+      const sid = $("studentCompareSelect")?.value;
+      if (!sid) { alert("전후 비교 자료를 만들 학생을 선택해주세요."); return; }
+      const rows = (state?.analysis || []).filter(row => row.익명ID === sid);
+      const entries = buildBeforeAfterEntries(rows, period);
+      if (!entries.length) { alert("선택한 학생의 전후 비교 데이터가 없습니다."); return; }
+      const entry = entries[0];
+      const wb = beforeAfterWorkbook([entry.summary], entry.detailRows, period);
+      const info = entry.info || {};
+      const studentId = safeFileName(info._학번 || info.학번 || "unknown");
+      const name = safeFileName(info.이름 || "이름없음");
+      XLSX.writeFile(wb, `6차시_전후비교_${studentId}_${name}.xlsx`);
+    }
+
+    async function downloadBeforeAfterZip() {
+      if (typeof JSZip === "undefined") {
+        alert("압축 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.");
+        return;
+      }
+
+      const period = getBeforeAfterPeriod();
+      if (!period) return;
+      const entries = buildBeforeAfterEntries(rowsForBeforeAfterSelection(), period);
+      if (!entries.length) {
+        alert("선택한 조건에 맞는 전후 비교 데이터가 없습니다.");
+        return;
+      }
+
+      const btn = $("downloadBeforeAfterZip");
+      const wrap = document.getElementById("progressWrap");
+      const bar = document.getElementById("progressBar");
+      btn.disabled = true;
+      wrap.style.display = "block";
+      bar.style.width = "0%";
+
+      try {
+        const zip = new JSZip();
+
+        for (let i = 0; i < entries.length; i++) {
+          bar.style.width = `${Math.round((i / entries.length) * 100)}%`;
+          const entry = entries[i];
+          const info = entry.info || {};
+          const wb = beforeAfterWorkbook([entry.summary], entry.detailRows, period);
+          const studentId = safeFileName(info._학번 || info.학번 || "unknown");
+          const name = safeFileName(info.이름 || "이름없음");
+          const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+          zip.file(`6차시_전후비교_${studentId}_${name}.xlsx`, bytes);
+
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        const blob = await zip.generateAsync({ type: "blob" }, metadata => {
+          bar.style.width = `${Math.round(metadata.percent)}%`;
+        });
+        const stamp = new Date().toISOString().slice(0, 10);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const klass = $("classSelectCompare").value;
+        const suffix = klass ? `${klass}반` : "전체";
+        const namePart = ($("compareNameFilter")?.value || "").trim();
+        a.download = `6차시_전후비교자료_${suffix}${namePart ? "_" + safeFileName(namePart) : ""}_${stamp}.zip`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        bar.style.width = "100%";
+      } finally {
+        setTimeout(() => {
+          wrap.style.display = "none";
+          bar.style.width = "0%";
+          btn.disabled = false;
+        }, 800);
+      }
+    }
+
+    
+
+    function setSelectedWorkbookFile(file) {
+      if (!file) return;
+      if (!/\.(xlsx|xls)$/i.test(file.name)) {
+        $("message").className = "notice warn";
+        $("message").textContent = "엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.";
+        return;
+      }
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      $("file").files = transfer.files;
+      $("dropHint").textContent = `${file.name} 파일이 선택되었습니다.`;
+    }
+
+    function setupFileDropZone() {
+      const zone = $("dropZone");
+      if (!zone) return;
+      ["dragenter", "dragover"].forEach(eventName => {
+        zone.addEventListener(eventName, event => {
+          event.preventDefault();
+          event.stopPropagation();
+          zone.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach(eventName => {
+        zone.addEventListener(eventName, event => {
+          event.preventDefault();
+          event.stopPropagation();
+          zone.classList.remove("dragover");
+        });
+      });
+      zone.addEventListener("drop", event => {
+        const file = [...(event.dataTransfer?.files || [])].find(item => /\.(xlsx|xls)$/i.test(item.name));
+        setSelectedWorkbookFile(file);
+      });
+      $("file").addEventListener("change", () => {
+        const file = $("file").files[0];
+        $("dropHint").textContent = file ? `${file.name} 파일이 선택되었습니다.` : "엑셀 파일을 여기에 드래그하거나 파일 선택 버튼을 눌러 업로드하세요.";
+      });
+    }
+
+    $("run").addEventListener("click", async () => {
+      const file = $("file").files[0];
+      if (!file) {
+        $("message").className = "notice warn";
+        $("message").textContent = "먼저 엑셀 파일을 선택해주세요.";
+        return;
+      }
+      try {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array", cellDates: false, raw: true });
+        state = preprocess(workbook);
+        activeTab = "teacherAnalysis";
+        $("message").className = "notice";
+        $("message").textContent = "전처리가 완료되었습니다.";
+        ["downloadTeacher", "downloadCsv", "downloadAiSummary", "treeDraw"].forEach(id => $(id).disabled = false);
+        renderMetrics();
+        renderTabs();
+        renderTable();
+        populateFilters();
+      } catch (error) {
+        $("message").className = "notice warn";
+        $("message").textContent = `전처리 중 오류가 발생했습니다: ${error.message}`;
+      }
+    });
+
+    $("downloadTeacher").addEventListener("click", () => downloadWorkbook(true));
+    $("downloadCsv").addEventListener("click", downloadCsv);
+    $("downloadAiSummary").addEventListener("click", downloadAiSummary);
+    $("treeDraw").addEventListener("click", drawAiTree);
+    $("reset").addEventListener("click", resetApp);
+
+    $("downloadByClass").addEventListener("click", downloadByClass);
+    $("downloadAllClass").addEventListener("click", downloadAllClass);
+    $("downloadOneStudent").addEventListener("click", downloadOneStudent);
+    $("downloadAllStudents").addEventListener("click", downloadAllStudents);
+    if ($("downloadTask")) $("downloadTask").addEventListener("click", downloadTaskFile);
+    $("downloadBeforeAfterOne").addEventListener("click", downloadBeforeAfterOne);
+    $("downloadBeforeAfter").addEventListener("click", downloadBeforeAfter);
+    $("downloadBeforeAfterZip").addEventListener("click", downloadBeforeAfterZip);
+    $("downloadDataCheck").addEventListener("click", downloadDataCheck);
+    $("downloadDataCheckZip").addEventListener("click", downloadDataCheckZip);
+    $("downloadReview").addEventListener("click", downloadTeacherReview);
+
+    // 반 선택 시 학생 드롭다운 갱신
+    $("classForStudent").addEventListener("change", populateStudentSelect);
+    $("classForCheck").addEventListener("change", populateDataCheckStudentSelect);
+    $("classSelectCompare").addEventListener("change", populateCompareStudentSelect);
+    $("compareNameFilter").addEventListener("input", populateCompareStudentSelect);
+    $("studentCompareSelect").addEventListener("change", updateBeforeAfterButtons);
+    const resetTreePanel = () => {
+      if ($("treePanel")) {
+        $("treePanel").style.display = "none";
+        $("treePanel").innerHTML = "";
+      }
+    };
+    $("classSelectTree").addEventListener("change", resetTreePanel);
+    $("studentCheckSelect").addEventListener("change", updateDataCheckButtons);
+    $("dataCheckStart").addEventListener("change", updateDataCheckButtons);
+    $("dataCheckEnd").addEventListener("change", updateDataCheckButtons);
+    ["beforeExperimentStart", "beforeExperimentEnd", "experimentStart", "experimentEnd"].forEach(id => {
+      $(id).addEventListener("change", updateBeforeAfterButtons);
+    });
+    setupFileDropZone();
+  </script>
+</body>
+</html>
