@@ -489,10 +489,9 @@
               <span style="font-size:12px; color:#667085;">~</span>
               <input id="experimentEnd" type="date" title="행동 실험 종료일" />
               <select id="classSelectCompare"><option value="">반 선택</option></select>
-              <input id="compareNameFilter" type="text" placeholder="이름 필터" style="max-width:120px;" />
               <select id="studentCompareSelect"><option value="">학생 선택</option></select>
               <button id="downloadBeforeAfterOne" class="secondary" disabled>📥 6차시용 개인 전후 비교 자료</button>
-              <button id="downloadBeforeAfter" class="secondary" disabled>📥 6차시용 전후 비교 자료 (반/필터)</button>
+              <button id="downloadBeforeAfter" class="secondary" disabled>📥 6차시용 전후 비교 자료 (반)</button>
               <button id="downloadBeforeAfterZip" class="secondary" disabled>📥 개인별 전후 비교 자료 ZIP</button>
             </div>
           </div>
@@ -1893,11 +1892,7 @@
 
     function compareStudentOptions() {
       const klass = $("classSelectCompare")?.value || "";
-      const keyword = ($("compareNameFilter")?.value || "").trim().toLowerCase();
-      return studentOptionsForClass(klass).filter(s => {
-        if (!keyword) return true;
-        return [s.이름, s.학번, s.익명ID, s.번호].some(value => String(value || "").toLowerCase().includes(keyword));
-      });
+      return studentOptionsForClass(klass);
     }
 
     function populateCompareStudentSelect() {
@@ -2629,7 +2624,6 @@
       $("studentSelect").innerHTML = "<option value=''>학생 선택</option>";
       if ($("studentCheckSelect")) $("studentCheckSelect").innerHTML = "<option value=''>학생 선택</option>";
       if ($("studentCompareSelect")) $("studentCompareSelect").innerHTML = "<option value=''>학생 선택</option>";
-      if ($("compareNameFilter")) $("compareNameFilter").value = "";
       if ($("beforeExperimentStart")) $("beforeExperimentStart").value = "";
       if ($("beforeExperimentEnd")) $("beforeExperimentEnd").value = "";
       if ($("experimentStart")) $("experimentStart").value = "";
@@ -3255,8 +3249,6 @@
     function rowsForBeforeAfterSelection() {
       const klass = $("classSelectCompare")?.value || "";
       const options = compareStudentOptions();
-      const keyword = ($("compareNameFilter")?.value || "").trim();
-      if (keyword && options.length === 0) return [];
       const allowedStudents = new Set(options.map(s => s.익명ID));
       return (state?.analysis || []).filter(row => {
         if (klass && String(row.반) !== String(klass)) return false;
@@ -3372,8 +3364,7 @@
       const wb = beforeAfterWorkbook(summary, detailRows, period);
       const klass = $("classSelectCompare").value;
       const suffix = klass ? `${klass}반` : "전체";
-      const namePart = ($("compareNameFilter")?.value || "").trim();
-      XLSX.writeFile(wb, `6차시_전후비교자료_${suffix}${namePart ? "_" + safeFileName(namePart) : ""}.xlsx`);
+      XLSX.writeFile(wb, `6차시_전후비교자료_${suffix}.xlsx`);
     }
 
     function downloadBeforeAfterOne() {
@@ -3437,8 +3428,7 @@
         a.href = URL.createObjectURL(blob);
         const klass = $("classSelectCompare").value;
         const suffix = klass ? `${klass}반` : "전체";
-        const namePart = ($("compareNameFilter")?.value || "").trim();
-        a.download = `6차시_전후비교자료_${suffix}${namePart ? "_" + safeFileName(namePart) : ""}_${stamp}.zip`;
+        a.download = `6차시_전후비교자료_${suffix}_${stamp}.zip`;
         a.click();
         URL.revokeObjectURL(a.href);
 
@@ -3541,7 +3531,6 @@
     $("classForStudent").addEventListener("change", populateStudentSelect);
     $("classForCheck").addEventListener("change", populateDataCheckStudentSelect);
     $("classSelectCompare").addEventListener("change", populateCompareStudentSelect);
-    $("compareNameFilter").addEventListener("input", populateCompareStudentSelect);
     $("studentCompareSelect").addEventListener("change", updateBeforeAfterButtons);
     const resetTreePanel = () => {
       if ($("treePanel")) {
