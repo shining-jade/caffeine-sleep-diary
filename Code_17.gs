@@ -59,6 +59,7 @@ function handleAPIRequest(action, params) {
       'getFilteredStats': getFilteredStats,
       // 뱃지
       'getTeacherAwardsForStudent': getTeacherAwardsForStudent,
+      'markTeacherAwardsSeen': markTeacherAwardsSeen,
       // 문의
       'submitInquiry': submitInquiry,
       'getMyInquiries': getMyInquiries,
@@ -3709,6 +3710,7 @@ function doPost(e) {
 
       // 뱃지 (교사→학생)
       'getTeacherAwardsForStudent': getTeacherAwardsForStudent,
+      'markTeacherAwardsSeen': markTeacherAwardsSeen,
 
       // 문의
       'submitInquiry': submitInquiry,
@@ -5111,7 +5113,8 @@ function getTeacherAwardsForStudent(studentId) {
           bg          : String(row[9]  || '#f5f3ff'),
           color       : String(row[10] || '#7c3aed'),
           message     : String(row[11] || ''),
-          grantedBy   : String(row[12] || '')  // 13열 없으면 빈 문자열
+          grantedBy   : String(row[12] || ''), // 13열 없으면 빈 문자열
+          seenAt      : _tsToStr_(row[13])
         });
       } else {
         // 구버전: B=학번, C=awardId, D=뱃지이름, E=이미지, F=배경색, G=글자색, H=메시지, I=교사
@@ -5124,7 +5127,8 @@ function getTeacherAwardsForStudent(studentId) {
           bg        : String(row[5] || '#f5f3ff'),
           color     : String(row[6] || '#7c3aed'),
           message   : String(row[7] || ''),
-          grantedBy : String(row[8] || '')
+          grantedBy : String(row[8] || ''),
+          seenAt    : _tsToStr_(row[9])
         });
       }
     }
@@ -5136,6 +5140,87 @@ function getTeacherAwardsForStudent(studentId) {
   } catch (err) {
     Logger.log('❌ getTeacherAwardsForStudent 오류: ' + err.message);
     return { success: false, awards: [], error: err.message };
+  }
+}
+
+/**
+ * 학생이 교사 수여 뱃지 알림을 확인한 시각을 시트에 저장한다.
+ * 브라우저 localStorage가 삭제되거나 다른 기기에서 로그인해도 재알림하지 않기 위한 서버 상태다.
+ *
+ * @param {string} studentId
+ * @param {{grantedAt:string, awardId:string, name:string}[]} awardKeys
+ * @returns {{success:boolean, updated:number}}
+ */
+function markTeacherAwardsSeen(studentId, studentName, awardKeys) {
+  try {
+    const keys = Array.isArray(awardKeys) ? awardKeys : [];
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const targetId = normalizeId(studentId);
+    const targetName = String(studentName || '').trim();
+    if (!targetId || !targetName || !keys.length) {
+      return { success: false, updated: 0, error: '학생 정보 또는 뱃지 확인 항목이 없습니다.' };
+    }
+
+    const studentsSheet = ss.getSheetByName('students');
+    if (!studentsSheet) return { success: false, updated: 0, error: '학생 명단을 찾을 수 없습니다.' };
+    const students = studentsSheet.getDataRange().getValues();
+    const validStudent = students.slice(1).some(function(row) {
+      const rowId = normalizeId(row[4]);
+      const rowName = String(row[3] || '').trim();
+      return rowName === targetName && (targetId === rowId || targetId === rowId + '_' + rowName);
+    });
+    if (!validStudent) return { success: false, updated: 0, error: '로그인 학생 정보가 일치하지 않습니다.' };
+
+    const sheet = _getOrCreateAwardSheet_(ss);
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return { success: true, updated: 0 };
+
+    const totalCols = data[0] ? data[0].length : 0;
+    const hdr1 = String(data[0][1] || '').toLowerCase();
+    const isNewFormat = (totalCols >= 12) && (hdr1 === '학년' || hdr1 === 'grade');
+    const seenColumn = isNewFormat ? 14 : 10;
+    const seenAt = _nowKST_();
+
+    if (!data[0][seenColumn - 1]) {
+      sheet.getRange(1, seenColumn).setValue('학생확인일시');
+    }
+
+    let updated = 0;
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const rowSid = isNewFormat ? normalizeId(row[4]) : normalizeId(row[1]);
+      if (rowSid !== targetId) continue;
+
+      const rowAwardId = String((isNewFormat ? row[6] : row[2]) || '');
+      const rowName = String((isNewFormat ? row[7] : row[3]) || '');
+      const rowGrantedAt = _tsToStr_(row[0]);
+      const matched = keys.some(function(key) {
+        const keyAwardId = String(key && key.awardId || '');
+        const keyName = String(key && key.name || '');
+        const keyGrantedAt = String(key && key.grantedAt || '');
+        if (keyAwardId && rowAwardId !== keyAwardId) return false;
+        if (keyGrantedAt && rowGrantedAt !== keyGrantedAt) return false;
+        if (!keyAwardId && keyName && rowName !== keyName) return false;
+        return !!(keyAwardId || keyName || keyGrantedAt);
+      });
+
+      if (matched && !row[seenColumn - 1]) {
+        sheet.getRange(i + 1, seenColumn).setValue(seenAt);
+        updated++;
+      }
+    }
+
+    Logger.log('✅ 학생 뱃지 확인 저장: 학번=' + targetId + ', ' + updated + '건');
+    return { success: true, updated: updated };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    Logger.log('❌ markTeacherAwardsSeen 오류: ' + err.message);
+    return { success: false, updated: 0, error: err.message };
   }
 }
 
@@ -5425,14 +5510,14 @@ function _getOrCreateAwardSheet_(ss) {
   let sheet = ss.getSheetByName('teacher_awards');
   if (!sheet) {
     sheet = ss.insertSheet('teacher_awards');
-    // 헤더 행 작성 (신규 13컬럼 구조)
-    sheet.getRange(1, 1, 1, 13).setValues([[
+    // 헤더 행 작성 (신규 14컬럼 구조)
+    sheet.getRange(1, 1, 1, 14).setValues([[
       '수여일시', '학년', '반', '번호', '학번', '학생이름',
       'awardId', '뱃지이름', '이미지', '배경색', '글자색',
-      '코멘트', '수여교사'
+      '코멘트', '수여교사', '학생확인일시'
     ]]);
     // 헤더 스타일
-    const hdr = sheet.getRange(1, 1, 1, 13);
+    const hdr = sheet.getRange(1, 1, 1, 14);
     hdr.setBackground('#7c3aed');
     hdr.setFontColor('#ffffff');
     hdr.setFontWeight('bold');
@@ -5449,15 +5534,62 @@ function _getOrCreateAwardSheet_(ss) {
     sheet.setColumnWidth(9, 60);  // 이미지
     sheet.setColumnWidth(12, 200); // 코멘트
     sheet.setColumnWidth(13, 100); // 수여교사
-    Logger.log('✅ teacher_awards 시트 자동 생성 (신규 13컬럼)');
+    sheet.setColumnWidth(14, 140); // 학생확인일시
+    Logger.log('✅ teacher_awards 시트 자동 생성 (신규 14컬럼)');
   } else {
-    // 기존 시트: 헤더가 구버전(9열)이면 마이그레이션 안내 (데이터는 건드리지 않음)
-    const hdrVals = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    if (hdrVals.length < 10 && String(hdrVals[1]).toLowerCase() === 'studentid') {
-      Logger.log('⚠️ teacher_awards 시트가 구버전(9열) 형식입니다. 신규 데이터는 13열로 저장됩니다.');
+    const awardData = sheet.getDataRange().getValues();
+    const hdrVals = awardData[0] || [];
+    const header1 = String(hdrVals[1] || '').trim().toLowerCase();
+    const isCurrentHeader = header1 === '학년' || header1 === 'grade';
+    const isLegacyHeader = hdrVals.length <= 10 && ['studentid', 'student_id', '학번'].includes(header1);
+    const isEmptyHeader = hdrVals.every(function(value) { return String(value || '').trim() === ''; });
+    if (isLegacyHeader) {
+      const migrationLock = LockService.getScriptLock();
+      migrationLock.waitLock(10000);
+      try {
+        const latestData = sheet.getDataRange().getValues();
+        const latestHeader = latestData[0] || [];
+        const latestHeader1 = String(latestHeader[1] || '').trim().toLowerCase();
+        if (latestHeader.length <= 10 && ['studentid', 'student_id', '학번'].includes(latestHeader1)) {
+          _migrateLegacyAwardSheet_(sheet, latestData);
+          Logger.log('✅ teacher_awards 구버전 시트를 14열 형식으로 변환했습니다.');
+        }
+      } finally {
+        migrationLock.releaseLock();
+      }
+    } else if (isCurrentHeader && !hdrVals[13]) {
+      sheet.getRange(1, 14).setValue('학생확인일시');
+    } else if (isEmptyHeader) {
+      sheet.getRange(1, 1, 1, 14).setValues([[
+        '수여일시', '학년', '반', '번호', '학번', '학생이름',
+        'awardId', '뱃지이름', '이미지', '배경색', '글자색',
+        '코멘트', '수여교사', '학생확인일시'
+      ]]);
+    } else if (!isCurrentHeader) {
+      throw new Error('teacher_awards 시트의 헤더 형식을 확인할 수 없습니다. 기존 데이터를 보호하기 위해 쓰기를 중단합니다.');
     }
   }
   return sheet;
+}
+
+/** 구형 9~10열 뱃지 시트를 현재 14열 형식으로 보존 변환한다. */
+function _migrateLegacyAwardSheet_(sheet, legacyData) {
+  const source = legacyData || [];
+  const migrated = [[
+    '수여일시', '학년', '반', '번호', '학번', '학생이름',
+    'awardId', '뱃지이름', '이미지', '배경색', '글자색',
+    '코멘트', '수여교사', '학생확인일시'
+  ]];
+  for (let i = 1; i < source.length; i++) {
+    const row = source[i];
+    migrated.push([
+      row[0] || '', '', '', '', row[1] || '', '',
+      row[2] || '', row[3] || '', row[4] || '🏅',
+      row[5] || '#f5f3ff', row[6] || '#7c3aed',
+      row[7] || '', row[8] || '', row[9] || ''
+    ]);
+  }
+  sheet.getRange(1, 1, migrated.length, 14).setValues(migrated);
 }
 
 /**

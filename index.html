@@ -4518,6 +4518,32 @@
     function getSeenTeacherAwardIds() {
       try { return JSON.parse(localStorage.getItem(_taBadgeKey()) || '[]'); } catch(e) { return []; }
     }
+    function _teacherAwardSeenQueueKey() {
+      return 'pendingTeacherAwardSeen_' + (user ? user.studentId : 'x');
+    }
+    function _readTeacherAwardSeenQueue() {
+      try { return JSON.parse(localStorage.getItem(_teacherAwardSeenQueueKey()) || '[]'); } catch(e) { return []; }
+    }
+    function _writeTeacherAwardSeenQueue(items) {
+      try { localStorage.setItem(_teacherAwardSeenQueueKey(), JSON.stringify(items || [])); } catch(e) {}
+    }
+    function _flushTeacherAwardSeenQueue() {
+      if (!user || !user.studentId || !user.name) return;
+      const pending = _readTeacherAwardSeenQueue();
+      if (!pending.length) return;
+      const sentKeys = new Set(pending.map(a => _awardKey(a)));
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && res.success) {
+            const remaining = _readTeacherAwardSeenQueue().filter(a => !sentKeys.has(_awardKey(a)));
+            _writeTeacherAwardSeenQueue(remaining);
+          } else {
+            console.warn('[교사뱃지] 서버 확인 저장 실패:', res && res.error);
+          }
+        })
+        .withFailureHandler(err => console.warn('[교사뱃지] 서버 확인 저장 실패:', err))
+        .markTeacherAwardsSeen(user.studentId, user.name, pending);
+    }
     function markTeacherAwardsSeen(awards) {
       try {
         // 각 뱃지에 고유 key: grantedAt + name 조합
@@ -4526,16 +4552,31 @@
         const merged = [...new Set([...prev, ...ids])];
         localStorage.setItem(_taBadgeKey(), JSON.stringify(merged));
       } catch(e) {}
+
+      // 서버 저장 대기열에 남긴 뒤 전송한다. 실패하면 다음 조회/로그인에서 다시 시도한다.
+      if (user && user.studentId && user.name && awards && awards.length) {
+        const incoming = awards.map(a => ({
+          grantedAt: a.grantedAt || '',
+          awardId: a.awardId || a.badgeId || '',
+          name: a.name || ''
+        }));
+        const byKey = new Map(_readTeacherAwardSeenQueue().map(a => [_awardKey(a), a]));
+        incoming.forEach(a => byKey.set(_awardKey(a), a));
+        _writeTeacherAwardSeenQueue([...byKey.values()]);
+        _flushTeacherAwardSeenQueue();
+      }
     }
     function _awardKey(a) { return (a.grantedAt || '') + '|' + (a.name || ''); }
     function getNewTeacherAwards(awards) {
       const seen = getSeenTeacherAwardIds();
-      return awards.filter(a => !seen.includes(_awardKey(a)));
+      return awards.filter(a => !a.seenAt && !seen.includes(_awardKey(a)));
     }
 
     // ⭐ 현재 awards에 없는 seen ID는 정리 (교사가 뱃지 삭제 시 seen 캐시 동기화)
     function _pruneSeenAwardIds(awards) {
       try {
+        // 일시적인 빈/실패 응답이 기존 확인 기록을 전부 지우지 않도록 보호한다.
+        if (!awards || awards.length === 0) return;
         const validKeys = new Set(awards.map(a => _awardKey(a)));
         const prev = getSeenTeacherAwardIds();
         const pruned = prev.filter(k => validKeys.has(k));
@@ -4553,6 +4594,7 @@
         .withSuccessHandler(res => {
           console.log('[교사뱃지] GAS 응답:', JSON.stringify(res));
           _applyTeacherAwards((res && res.success) ? (res.awards || []) : []);
+          _flushTeacherAwardSeenQueue();
         })
         .withFailureHandler(err => {
           console.error('[교사뱃지] GAS 실패:', err);
